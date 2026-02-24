@@ -49,13 +49,18 @@ public sealed class CreateOrderDto
 public sealed class ImportOrdersResponse
 {
     public string Message { get; set; } = string.Empty;
-    public List<OrderDto> Orders { get; set; } = [];
+
+    [JsonPropertyName("imported_count")]
+    public int ImportedCount { get; set; }
 
     [JsonPropertyName("skipped_count")]
     public int SkippedCount { get; set; }
 
     [JsonPropertyName("skipped_rows")]
     public List<int> SkippedRows { get; set; } = [];
+
+    [JsonPropertyName("processing_time_ms")]
+    public long ProcessingTimeMs { get; set; }
 }
 
 public sealed class ErrorResponse

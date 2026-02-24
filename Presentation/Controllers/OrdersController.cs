@@ -1,7 +1,7 @@
+using Microsoft.AspNetCore.Mvc;
 using TestTaskINT20H.Application.Orders.DTOs;
 using TestTaskINT20H.Application.Orders.Services;
 using TestTaskINT20H.Application.Shared;
-using Microsoft.AspNetCore.Mvc;
 
 namespace TestTaskINT20H.Presentation.Controllers;
 
@@ -54,6 +54,8 @@ public sealed class OrdersController(OrderApplicationService orderService, CsvIm
         if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
             return BadRequest(new ErrorResponse { Error = "File must be a CSV" });
 
+        var startTime = System.Diagnostics.Stopwatch.GetTimestamp();
+
         try
         {
             using var stream = file.OpenReadStream();
@@ -68,12 +70,15 @@ public sealed class OrdersController(OrderApplicationService orderService, CsvIm
 
             var orders = _orderService.ImportOrders(parseResult.Orders);
 
+            var elapsedMs = System.Diagnostics.Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
+
             var response = new ImportOrdersResponse
             {
-                Message = $"Successfully imported {orders.Count} orders",
-                Orders = orders,
+                Message = $"Successfully imported {orders.Count} orders for {elapsedMs / 1000.0:F2} seconds, Glory to C#, Glory to KSE",
+                ImportedCount = orders.Count,
                 SkippedCount = parseResult.SkippedCount,
-                SkippedRows = parseResult.SkippedRows
+                SkippedRows = parseResult.SkippedRows,
+                ProcessingTimeMs = (long)elapsedMs
             };
 
             return Ok(response);
