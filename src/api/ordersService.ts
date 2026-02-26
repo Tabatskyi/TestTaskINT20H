@@ -1,5 +1,5 @@
 import axiosInstance from './axiosInstance';
-import {OrderDto, CreateOrderDto, ImportOrdersResponse} from './types';
+import {OrderDto, CreateOrderDto, ImportOrdersResponse, OrderFilters, PageResponse} from './types';
 
 export const ordersService = {
     createOrder: async (data: CreateOrderDto): Promise<OrderDto> => {
@@ -16,8 +16,10 @@ export const ordersService = {
         return response.data;
     },
 
-    getOrders: async (params: any) => {
-        const response = await axiosInstance.get('/orders', {params});
+    getOrders: async (filters: OrderFilters): Promise<PageResponse<OrderDto>> => {
+        const response = await axiosInstance.get<PageResponse<OrderDto>>('/orders', {
+            params: filters
+        });
         return response.data;
-    }
+    },
 };

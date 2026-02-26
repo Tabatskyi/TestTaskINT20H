@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { ordersService } from '../api/ordersService';
-import { CreateOrderDto, OrderDto } from '../api/types';
+import React, {useState} from 'react';
+import {ordersService} from '../api/ordersService';
+import {CreateOrderDto, OrderDto} from '../api/types';
 
 const CreateOrderForm: React.FC = () => {
     const [formData, setFormData] = useState<CreateOrderDto>({
@@ -26,7 +26,7 @@ const CreateOrderForm: React.FC = () => {
     };
 
     return (
-        <div style={{ padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
+        <div style={{padding: '20px', border: '1px solid #ccc', borderRadius: '8px'}}>
             <h2>Нове замовлення (Manual)</h2>
             <form onSubmit={handleSubmit}>
                 <div>
@@ -56,16 +56,18 @@ const CreateOrderForm: React.FC = () => {
                         required
                     />
                 </div>
-                <button type="submit" style={{ marginTop: '10px' }}>Розрахувати та створити</button>
+                <button type="submit" style={{marginTop: '10px'}}>Розрахувати та створити</button>
             </form>
 
-            {error && <p style={{ color: 'red' }}>{error}</p>}
+            {error && <p style={{color: 'red'}}>{error}</p>}
 
             {result && (
-                <div style={{ marginTop: '20px', backgroundColor: '#f0f9f0', padding: '10px' }}>
+                <div style={{marginTop: '20px', backgroundColor: '#f0f9f0', padding: '10px'}}>
                     <h3>Результат розрахунку:</h3>
-                    <p><strong>Total:</strong> ${result.totalAmount.toFixed(2)}</p>
-                    <p><strong>Tax:</strong> ${result.taxAmount.toFixed(2)} ({ (result.taxBreakdown.compositeRate * 100).toFixed(2) }%)</p>
+                    <p><strong>Total:</strong> ${result.total_amount.toFixed(2)}</p>
+                    <p>
+                        <strong>Tax:</strong> ${result.tax_amount.toFixed(2)} ({(result.breakdown.composite_rate * 100).toFixed(2)}%)
+                    </p>
                     <p><strong>Jurisdictions:</strong> {result.jurisdictions.join(', ')}</p>
                 </div>
             )}

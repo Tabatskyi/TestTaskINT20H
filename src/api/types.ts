@@ -6,11 +6,11 @@ export interface CreateOrderDto {
 }
 
 export interface TaxBreakdown {
-    stateRate: number;
-    countyRate: number;
-    cityRate: number;
-    specialRates: number;
-    compositeRate: number;
+    state_rate: number;
+    county_rate: number;
+    city_rate: number;
+    special_rates: number;
+    composite_rate: number;
 }
 
 export interface OrderDto {
@@ -18,10 +18,11 @@ export interface OrderDto {
     latitude: number;
     longitude: number;
     subtotal: number;
-    taxAmount: number;
-    totalAmount: number;
+    tax_amount: number;
+    total_amount: number;
     timestamp: string;
-    taxBreakdown: TaxBreakdown;
+    composite_tax_rate: number;
+    breakdown: TaxBreakdown;
     jurisdictions: string[];
 }
 
@@ -31,4 +32,21 @@ export interface ImportOrdersResponse {
     skippedCount: number;
     skippedRows: number[];
     processingTimeMs: number;
+}
+
+export interface PageResponse<T> {
+    size: number;
+    pageNumber: number;
+    totalPages: number;
+    content: T[];
+}
+
+export interface OrderFilters {
+    from_date?: string;
+    to_date?: string;
+    min_total?: number;
+    max_total?: number;
+    jurisdiction?: string;
+    page?: number;
+    size?: number;
 }
