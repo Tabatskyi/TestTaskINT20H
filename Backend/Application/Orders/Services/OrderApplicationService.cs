@@ -30,6 +30,10 @@ public sealed class OrderApplicationService(
         var order = Order.Create(location, subtotal, request.Timestamp);
 
         var taxCalculation = _taxCalculationService.CalculateTax(order.Location, order.Subtotal);
+
+        if (taxCalculation.Jurisdictions.Contains("Out of State"))
+            throw new InvalidOperationException("Orders can only be created for locations within New York State.");
+
         order.ApplyTaxCalculation(taxCalculation);
 
         _orderRepository.Add(order);
@@ -37,38 +41,47 @@ public sealed class OrderApplicationService(
         return _mapper.MapToDto(order);
     }
 
-    public List<OrderDto> ImportOrders(List<CreateOrderDto> requests)
+    public ImportOrdersResult ImportOrders(List<CreateOrderDto> requests)
     {
         if (requests.Count == 0)
-            return [];
+            return new ImportOrdersResult();
 
-        // Pre-allocate capacity for better performance
         var orders = new List<Order>(requests.Count);
-        var orderDtos = new List<OrderDto>(requests.Count);
+        var skippedIndices = new List<int>();
 
-        // Create all orders in memory first (without individual repository calls)
-        foreach (var request in requests)
+        for (var i = 0; i < requests.Count; i++)
         {
+            var request = requests[i];
             var location = new Location(request.Latitude, request.Longitude);
             var subtotal = new Money(request.Subtotal);
             var order = Order.Create(location, subtotal, request.Timestamp);
 
             var taxCalculation = _taxCalculationService.CalculateTax(order.Location, order.Subtotal);
-            order.ApplyTaxCalculation(taxCalculation);
 
+            if (taxCalculation.Jurisdictions.Contains("Out of State"))
+            {
+                skippedIndices.Add(i);
+                continue;
+            }
+
+            order.ApplyTaxCalculation(taxCalculation);
             orders.Add(order);
         }
 
-        // Batch insert all orders at once (single lock acquisition)
         _orderRepository.AddRange(orders);
 
-        // Map to DTOs after persistence
+        var orderDtos = new List<OrderDto>(orders.Count);
         foreach (var order in orders)
         {
             orderDtos.Add(_mapper.MapToDto(order));
         }
 
-        return orderDtos;
+        return new ImportOrdersResult
+        {
+            Orders = orderDtos,
+            SkippedCount = skippedIndices.Count,
+            SkippedIndices = skippedIndices
+        };
     }
 
     public OrderDto? GetOrder(Guid orderId)
@@ -102,4 +115,11 @@ public sealed class OrderApplicationService(
 
         return new Page<OrderDto>(size, page, totalPages, orderDtos);
     }
+}
+
+public sealed record ImportOrdersResult
+{
+    public List<OrderDto> Orders { get; init; } = [];
+    public int SkippedCount { get; init; }
+    public List<int> SkippedIndices { get; init; } = [];
 }

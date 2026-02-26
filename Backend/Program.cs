@@ -1,10 +1,11 @@
+using Microsoft.OpenApi;
+using System.Reflection;
 using TestTaskINT20H.Application.Orders.Mappers;
 using TestTaskINT20H.Application.Orders.Services;
 using TestTaskINT20H.Domain.Orders.Repositories;
 using TestTaskINT20H.Domain.Orders.Services;
+using TestTaskINT20H.Infrastructure.GIS;
 using TestTaskINT20H.Infrastructure.Orders;
-using Microsoft.OpenApi;
-using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +22,15 @@ builder.Services.AddSwaggerGen(options =>
 
     var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+});
+
+// GIS Services - load shapefile at startup
+builder.Services.AddSingleton(provider =>
+{
+    var countyLookup = new ShapefileCountyLookupService();
+    var shapefilePath = Path.Combine(AppContext.BaseDirectory, "Data", "ny_counties.shp");
+    countyLookup.LoadShapefile(shapefilePath);
+    return countyLookup;
 });
 
 // Domain Services

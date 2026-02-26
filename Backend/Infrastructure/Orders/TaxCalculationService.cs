@@ -1,214 +1,144 @@
 using TestTaskINT20H.Domain.Orders.Services;
 using TestTaskINT20H.Domain.Orders.ValueObjects;
+using TestTaskINT20H.Infrastructure.GIS;
 
 namespace TestTaskINT20H.Infrastructure.Orders;
 
 /// <summary>
 /// Implementation of tax calculation domain service for New York State.
+/// Uses shapefile-based county lookup for accurate jurisdiction determination.
 /// </summary>
 public sealed class TaxCalculationService : ITaxCalculationService
 {
     private const decimal NYStateRate = 0.04m;
+    private const decimal DefaultCountyRate = 0.04m;
 
-    private static readonly TaxJurisdiction[] CityJurisdictions;
-    private static readonly TaxJurisdiction[] CountyJurisdictions;
-    private static readonly TaxJurisdiction DefaultStateJurisdiction;
+    private readonly ShapefileCountyLookupService _countyLookup;
 
-    private static readonly List<TaxJurisdiction> Jurisdictions =
+    // Tax rates by county name (rates as of 2024)
+    private static readonly Dictionary<string, CountyTaxInfo> CountyTaxRates = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // NYC boroughs (combined county + city + MCTD rate)
+        ["New York"] = new("New York City", 0.045m, 0.0m, 0.00375m),
+        ["Kings"] = new("New York City", 0.045m, 0.0m, 0.00375m),
+        ["Queens"] = new("New York City", 0.045m, 0.0m, 0.00375m),
+        ["Bronx"] = new("New York City", 0.045m, 0.0m, 0.00375m),
+        ["Richmond"] = new("New York City", 0.045m, 0.0m, 0.00375m),
+
+        // Long Island
+        ["Nassau"] = new(null, 0.04625m, 0.0m, 0.0m),
+        ["Suffolk"] = new(null, 0.04625m, 0.0m, 0.0m),
+
+        // Westchester (MCTD district)
+        ["Westchester"] = new(null, 0.0375m, 0.0m, 0.00375m),
+
+        // Other counties with specific rates
+        ["Erie"] = new(null, 0.04m, 0.0m, 0.0m),
+        ["Monroe"] = new(null, 0.04m, 0.0m, 0.0m),
+        ["Onondaga"] = new(null, 0.04m, 0.0m, 0.0m),
+        ["Albany"] = new(null, 0.04m, 0.0m, 0.0m),
+        ["Dutchess"] = new(null, 0.0375m, 0.0m, 0.00375m),
+        ["Orange"] = new(null, 0.0375m, 0.0m, 0.00375m),
+        ["Putnam"] = new(null, 0.04m, 0.0m, 0.00375m),
+        ["Rockland"] = new(null, 0.04m, 0.0m, 0.00375m),
+    };
+
+    // Cities with special tax rates (checked separately)
+    private static readonly CityTaxInfo[] SpecialCities =
     [
-        // New York City (5 boroughs)
-        new TaxJurisdiction
-        {
-            Name = "New York City",
-            Type = JurisdictionType.City,
-            MinLat = 40.4774, MaxLat = 40.9176,
-            MinLon = -74.2591, MaxLon = -73.7004,
-            CountyRate = 0.045m,
-            CityRate = 0.0m,
-            SpecialRates = 0.00375m,
-            Counties = ["New York County", "Kings County", "Queens County", "Bronx County", "Richmond County"]
-        },
-        // Yonkers (special city rate)
-        new TaxJurisdiction
-        {
-            Name = "Yonkers",
-            Type = JurisdictionType.City,
-            MinLat = 40.9126, MaxLat = 40.9787,
-            MinLon = -73.9075, MaxLon = -73.8265,
-            CountyRate = 0.0375m,
-            CityRate = 0.015m,
-            SpecialRates = 0.0m,
-            Counties = ["Westchester County"]
-        },
-        // Buffalo
-        new TaxJurisdiction
-        {
-            Name = "Buffalo",
-            Type = JurisdictionType.City,
-            MinLat = 42.8260, MaxLat = 42.9663,
-            MinLon = -78.9120, MaxLon = -78.7953,
-            CountyRate = 0.04m,
-            CityRate = 0.0m,
-            SpecialRates = 0.0m,
-            Counties = ["Erie County"]
-        },
-        // Rochester
-        new TaxJurisdiction
-        {
-            Name = "Rochester",
-            Type = JurisdictionType.City,
-            MinLat = 43.0845, MaxLat = 43.2313,
-            MinLon = -77.7012, MaxLon = -77.5055,
-            CountyRate = 0.04m,
-            CityRate = 0.0m,
-            SpecialRates = 0.0m,
-            Counties = ["Monroe County"]
-        },
-        // Syracuse
-        new TaxJurisdiction
-        {
-            Name = "Syracuse",
-            Type = JurisdictionType.City,
-            MinLat = 42.9849, MaxLat = 43.0845,
-            MinLon = -76.2040, MaxLon = -76.0743,
-            CountyRate = 0.04m,
-            CityRate = 0.0m,
-            SpecialRates = 0.0m,
-            Counties = ["Onondaga County"]
-        },
-        // Albany
-        new TaxJurisdiction
-        {
-            Name = "Albany",
-            Type = JurisdictionType.City,
-            MinLat = 42.6145, MaxLat = 42.7085,
-            MinLon = -73.8170, MaxLon = -73.7236,
-            CountyRate = 0.04m,
-            CityRate = 0.0m,
-            SpecialRates = 0.0m,
-            Counties = ["Albany County"]
-        },
-        // Long Island - Nassau County
-        new TaxJurisdiction
-        {
-            Name = "Nassau County",
-            Type = JurisdictionType.County,
-            MinLat = 40.5464, MaxLat = 40.9112,
-            MinLon = -73.7432, MaxLon = -73.4232,
-            CountyRate = 0.04625m,
-            CityRate = 0.0m,
-            SpecialRates = 0.0m,
-            Counties = ["Nassau County"]
-        },
-        // Long Island - Suffolk County
-        new TaxJurisdiction
-        {
-            Name = "Suffolk County",
-            Type = JurisdictionType.County,
-            MinLat = 40.6018, MaxLat = 41.1614,
-            MinLon = -73.4978, MaxLon = -71.8562,
-            CountyRate = 0.04625m,
-            CityRate = 0.0m,
-            SpecialRates = 0.0m,
-            Counties = ["Suffolk County"]
-        },
-        // Westchester County (excluding Yonkers)
-        new TaxJurisdiction
-        {
-            Name = "Westchester County",
-            Type = JurisdictionType.County,
-            MinLat = 40.8859, MaxLat = 41.3682,
-            MinLon = -73.9822, MaxLon = -73.4827,
-            CountyRate = 0.0375m,
-            CityRate = 0.0m,
-            SpecialRates = 0.0m,
-            Counties = ["Westchester County"]
-        },
-        // Default NY State jurisdiction
-        new TaxJurisdiction
-        {
-            Name = "New York State (Default)",
-            Type = JurisdictionType.State,
-            MinLat = 40.4961, MaxLat = 45.0159,
-            MinLon = -79.7624, MaxLon = -71.8562,
-            CountyRate = 0.04m,
-            CityRate = 0.0m,
-            SpecialRates = 0.0m,
-            Counties = []
-        }
+        new("Yonkers", "Westchester", 40.9126, 40.9787, -73.9075, -73.8265, 0.015m),
     ];
 
-    static TaxCalculationService()
+    public TaxCalculationService(ShapefileCountyLookupService countyLookup)
     {
-        CityJurisdictions = Jurisdictions.Where(jr => jr.Type == JurisdictionType.City).ToArray();
-        CountyJurisdictions = Jurisdictions.Where(jr => jr.Type == JurisdictionType.County).ToArray();
-        DefaultStateJurisdiction = Jurisdictions.First(jr => jr.Type == JurisdictionType.State);
+        _countyLookup = countyLookup ?? throw new ArgumentNullException(nameof(countyLookup));
     }
 
     public TaxCalculation CalculateTax(Location location, Money subtotal)
     {
-        var jurisdiction = FindJurisdiction(location);
+        var countyInfo = _countyLookup.FindCounty(location.Latitude, location.Longitude);
+
+        // If location is outside NY State, return zero tax
+        if (countyInfo is null)
+        {
+            var noTaxBreakdown = new TaxBreakdown(0.0m, 0.0m, 0.0m, 0.0m);
+            var noTax = new Money(0.0m, subtotal.Currency);
+            return new TaxCalculation(noTaxBreakdown, noTax, new List<string> { "Out of State" }.AsReadOnly());
+        }
+
+        // Check for special city rates first
+        var specialCity = FindSpecialCity(location, countyInfo.Name);
+
+        var taxInfo = GetCountyTaxInfo(countyInfo.Name);
+        var cityRate = specialCity?.CityRate ?? taxInfo.CityRate;
+        var cityName = specialCity?.CityName;
 
         var breakdown = new TaxBreakdown(
             NYStateRate,
-            jurisdiction.CountyRate,
-            jurisdiction.CityRate,
-            jurisdiction.SpecialRates
+            taxInfo.CountyRate,
+            cityRate,
+            taxInfo.SpecialRates
         );
 
         var taxAmount = new Money(subtotal.Amount * breakdown.CompositeRate, subtotal.Currency);
 
-        var jurisdictions = new List<string> { "New York State" };
-        if (jurisdiction.Counties.Length != 0)
-        {
-            jurisdictions.AddRange(jurisdiction.Counties);
-        }
-        if (jurisdiction.Type == JurisdictionType.City)
-        {
-            jurisdictions.Add(jurisdiction.Name);
-        }
+        var jurisdictions = BuildJurisdictionList(countyInfo, taxInfo, cityName);
 
         return new TaxCalculation(breakdown, taxAmount, jurisdictions.AsReadOnly());
     }
 
-    private static TaxJurisdiction FindJurisdiction(Location location)
+    private static CityTaxInfo? FindSpecialCity(Location location, string countyName)
     {
-        // First, try to find a city-level jurisdiction (most specific)
-        foreach (var cityJuris in CityJurisdictions)
+        foreach (var city in SpecialCities)
         {
-            if (location.IsWithinBounds(cityJuris.MinLat, cityJuris.MaxLat, cityJuris.MinLon, cityJuris.MaxLon))
-                return cityJuris;
+            if (!string.Equals(city.CountyName, countyName, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (location.IsWithinBounds(city.MinLat, city.MaxLat, city.MinLon, city.MaxLon))
+                return city;
         }
 
-        // Then, try county-level
-        foreach (var countyJuris in CountyJurisdictions)
+        return null;
+    }
+
+    private static CountyTaxInfo GetCountyTaxInfo(string countyName)
+    {
+        return CountyTaxRates.TryGetValue(countyName, out var info)
+            ? info
+            : new CountyTaxInfo(null, DefaultCountyRate, 0.0m, 0.0m);
+    }
+
+    private static List<string> BuildJurisdictionList(
+        CountyInfo countyInfo,
+        CountyTaxInfo taxInfo,
+        string? cityName)
+    {
+        var jurisdictions = new List<string> { "New York State" };
+
+        // Add the overarching city if applicable (e.g., NYC)
+        if (taxInfo.CityGroupName is not null)
         {
-            if (location.IsWithinBounds(countyJuris.MinLat, countyJuris.MaxLat, countyJuris.MinLon, countyJuris.MaxLon))
-                return countyJuris;
+            jurisdictions.Add(taxInfo.CityGroupName);
         }
 
-        // Finally, return state default
-        return DefaultStateJurisdiction;
+        jurisdictions.Add(countyInfo.FullName);
+
+        if (cityName is not null)
+        {
+            jurisdictions.Add(cityName);
+        }
+
+        return jurisdictions;
     }
 
-    private sealed class TaxJurisdiction
-    {
-        public string Name { get; init; } = string.Empty;
-        public JurisdictionType Type { get; init; }
-        public double MinLat { get; init; }
-        public double MaxLat { get; init; }
-        public double MinLon { get; init; }
-        public double MaxLon { get; init; }
-        public decimal CountyRate { get; init; }
-        public decimal CityRate { get; init; }
-        public decimal SpecialRates { get; init; }
-        public string[] Counties { get; init; } = [];
-    }
+    private sealed record CountyTaxInfo(string? CityGroupName, decimal CountyRate, decimal CityRate, decimal SpecialRates);
 
-    private enum JurisdictionType
-    {
-        State,
-        County,
-        City
-    }
+    private sealed record CityTaxInfo(
+        string CityName,
+        string CountyName,
+        double MinLat,
+        double MaxLat,
+        double MinLon,
+        double MaxLon,
+        decimal CityRate);
 }

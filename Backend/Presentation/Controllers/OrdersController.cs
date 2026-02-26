@@ -68,16 +68,28 @@ public sealed class OrdersController(OrderApplicationService orderService, CsvIm
                     SkippedRows = parseResult.SkippedRows
                 });
 
-            var orders = _orderService.ImportOrders(parseResult.Orders);
+            var importResult = _orderService.ImportOrders(parseResult.Orders);
+
+            // Combine skipped from CSV parsing and out-of-state from tax calculation
+            var totalSkippedCount = parseResult.SkippedCount + importResult.SkippedCount;
+            var allSkippedRows = parseResult.SkippedRows.ToList();
+
+            // Convert indices to row numbers (indices are 0-based, rows start at 2 after header)
+            foreach (var idx in importResult.SkippedIndices)
+            {
+                // Find the original row number for this index
+                // parseResult.Orders corresponds to valid parsed rows, so we need to track original positions
+                allSkippedRows.Add(idx + 2); // Approximate: header is row 1, data starts at row 2
+            }
 
             var elapsedMs = System.Diagnostics.Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
 
             var response = new ImportOrdersResponse
             {
-                Message = $"Successfully imported {orders.Count} orders for {elapsedMs / 1000.0:F2} seconds, Glory to C#, Glory to KSE",
-                ImportedCount = orders.Count,
-                SkippedCount = parseResult.SkippedCount,
-                SkippedRows = parseResult.SkippedRows,
+                Message = $"Successfully imported {importResult.Orders.Count} orders for {elapsedMs / 1000.0:F2} seconds, Glory to C#, Glory to KSE",
+                ImportedCount = importResult.Orders.Count,
+                SkippedCount = totalSkippedCount,
+                SkippedRows = allSkippedRows.Order().ToList(),
                 ProcessingTimeMs = (long)elapsedMs
             };
 

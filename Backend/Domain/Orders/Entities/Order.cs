@@ -32,9 +32,6 @@ public sealed class Order
 
     public static Order Create(Location location, Money subtotal, DateTime? timestamp = null)
     {
-        if (!location.IsInNewYorkState())
-            throw new InvalidOperationException("Orders can only be created for locations within New York State.");
-
         return new Order(
             Guid.NewGuid(),
             location,

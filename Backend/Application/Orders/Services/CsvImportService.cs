@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Text;
 using TestTaskINT20H.Application.Orders.DTOs;
 
 namespace TestTaskINT20H.Application.Orders.Services;
@@ -55,23 +56,28 @@ public sealed class CsvImportService
         List<(int RowNumber, string Line)> lines,
         ColumnIndices indices)
     {
-        var result = new CsvParseResult();
+        var orders = new List<CreateOrderDto>(lines.Count);
+        var skippedRows = new List<int>();
 
         foreach (var (rowNumber, line) in lines)
         {
-            var (Order, Skipped) = ParseLine(line, indices);
-            if (Order is not null)
+            var order = ParseLine(line, indices).Order;
+            if (order is not null)
             {
-                result.Orders.Add(Order);
+                orders.Add(order);
             }
             else
             {
-                result.SkippedCount++;
-                result.SkippedRows.Add(rowNumber);
+                skippedRows.Add(rowNumber);
             }
         }
 
-        return result;
+        return new CsvParseResult
+        {
+            Orders = orders,
+            SkippedCount = skippedRows.Count,
+            SkippedRows = skippedRows
+        };
     }
 
     private static CsvParseResult ParseLinesParallel(
@@ -125,25 +131,24 @@ public sealed class CsvImportService
         if (subtotal <= 0)
             return (null, true);
 
-        if (!IsValidNYCoordinates(latitude, longitude))
-            return (null, true);
+        DateTime? timestamp = null;
+        if (indices.Timestamp >= 0 && indices.Timestamp < values.Length &&
+            !string.IsNullOrEmpty(values[indices.Timestamp]))
+        {
+            if (DateTime.TryParse(values[indices.Timestamp], CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var parsedTimestamp))
+            {
+                timestamp = parsedTimestamp;
+            }
+        }
 
         var order = new CreateOrderDto
         {
             Latitude = latitude,
             Longitude = longitude,
-            Subtotal = subtotal
+            Subtotal = subtotal,
+            Timestamp = timestamp
         };
-
-        if (indices.Timestamp >= 0 && indices.Timestamp < values.Length &&
-            !string.IsNullOrEmpty(values[indices.Timestamp]))
-        {
-            if (DateTime.TryParse(values[indices.Timestamp], CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out var timestamp))
-            {
-                order.Timestamp = timestamp;
-            }
-        }
 
         return (order, false);
     }
@@ -156,22 +161,11 @@ public sealed class CsvImportService
         public int Timestamp { get; init; }
     }
 
-    private static bool IsValidNYCoordinates(double latitude, double longitude)
-    {
-        const double minLat = 40.4961;
-        const double maxLat = 45.0159;
-        const double minLon = -79.7624;
-        const double maxLon = -71.8562;
-
-        return latitude >= minLat && latitude <= maxLat &&
-               longitude >= minLon && longitude <= maxLon;
-    }
-
     private static string[] ParseCsvLine(string line)
     {
         var values = new List<string>();
         var inQuotes = false;
-        var valueBuilder = new System.Text.StringBuilder();
+        var valueBuilder = new StringBuilder();
 
         foreach (var ch in line)
         {
@@ -195,9 +189,9 @@ public sealed class CsvImportService
     }
 }
 
-public sealed class CsvParseResult
+public sealed record CsvParseResult
 {
-    public List<CreateOrderDto> Orders { get; set; } = [];
-    public int SkippedCount { get; set; }
-    public List<int> SkippedRows { get; set; } = [];
+    public List<CreateOrderDto> Orders { get; init; } = [];
+    public int SkippedCount { get; init; }
+    public List<int> SkippedRows { get; init; } = [];
 }
