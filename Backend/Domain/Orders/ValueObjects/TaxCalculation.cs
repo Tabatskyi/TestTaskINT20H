@@ -10,6 +10,9 @@ public sealed record TaxCalculation
     public Money TaxAmount { get; init; }
     public IReadOnlyList<string> Jurisdictions { get; init; }
 
+    // Parameterless constructor for EF Core — owned navigations cannot be bound via constructor parameters
+    private TaxCalculation() { }
+
     public TaxCalculation(TaxBreakdown breakdown, Money taxAmount, IReadOnlyList<string> jurisdictions)
     {
         ArgumentNullException.ThrowIfNull(breakdown);

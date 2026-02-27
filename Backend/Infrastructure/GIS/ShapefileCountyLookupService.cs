@@ -46,17 +46,14 @@ public sealed class ShapefileCountyLookupService : IDisposable
     }
 
     /// <summary>
-    /// Finds the county containing the given coordinates.
+    /// Finds the county containing the given WGS84 point.
     /// </summary>
-    /// <param name="latitude">Latitude in WGS84</param>
-    /// <param name="longitude">Longitude in WGS84</param>
+    /// <param name="point">WGS84 point (X = Longitude, Y = Latitude)</param>
     /// <returns>County information if found, null otherwise</returns>
-    public CountyInfo? FindCounty(double latitude, double longitude)
+    public CountyInfo? FindCounty(Point point)
     {
         if (!_isLoaded)
             throw new InvalidOperationException("Shapefile has not been loaded. Call LoadShapefile first.");
-
-        var point = _geometryFactory.CreatePoint(new Coordinate(longitude, latitude));
 
         foreach (var county in _nyCounties)
         {
@@ -73,6 +70,15 @@ public sealed class ShapefileCountyLookupService : IDisposable
 
         return null;
     }
+
+    /// <summary>
+    /// Finds the county containing the given coordinates.
+    /// </summary>
+    /// <param name="latitude">Latitude in WGS84</param>
+    /// <param name="longitude">Longitude in WGS84</param>
+    /// <returns>County information if found, null otherwise</returns>
+    public CountyInfo? FindCounty(double latitude, double longitude)
+        => FindCounty(_geometryFactory.CreatePoint(new Coordinate(longitude, latitude)));
 
     /// <summary>
     /// Checks if the given coordinates are within New York State.

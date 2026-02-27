@@ -56,7 +56,7 @@ public sealed class TaxCalculationService : ITaxCalculationService
 
     public TaxCalculation CalculateTax(Location location, Money subtotal)
     {
-        var countyInfo = _countyLookup.FindCounty(location.Latitude, location.Longitude);
+        var countyInfo = _countyLookup.FindCounty(location.Point);
 
         // If location is outside NY State, return zero tax
         if (countyInfo is null)
