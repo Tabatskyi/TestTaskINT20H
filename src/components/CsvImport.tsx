@@ -36,7 +36,7 @@ const CsvImport: React.FC = () => {
     };
 
     return (
-        <div style={{padding: '20px', border: '1px solid #ccc', borderRadius: '8px', marginTop: '20px'}}>
+        <div style={{padding: '20px', border: '1px solid #ccc', borderRadius: '8px'}}>
             <h2>Імпорт замовлень (CSV)</h2>
             <div style={{marginBottom: '10px'}}>
                 <input type="file" accept=".csv" onChange={handleFileChange}/>

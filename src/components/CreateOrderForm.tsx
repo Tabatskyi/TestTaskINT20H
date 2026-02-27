@@ -66,7 +66,7 @@ const CreateOrderForm: React.FC = () => {
                     <h3>Результат розрахунку:</h3>
                     <p><strong>Total:</strong> ${result.total_amount.toFixed(2)}</p>
                     <p>
-                        <strong>Tax:</strong> ${result.tax_amount.toFixed(2)} ({(result.breakdown.composite_rate * 100).toFixed(2)}%)
+                        <strong>Tax:</strong> ${result.tax_amount.toFixed(2)} ({(result.composite_tax_rate * 100).toFixed(2)}%)
                     </p>
                     <p><strong>Jurisdictions:</strong> {result.jurisdictions.join(', ')}</p>
                 </div>

@@ -22,4 +22,9 @@ export const ordersService = {
         });
         return response.data;
     },
+
+    getOrderById: async (orderId: string): Promise<OrderDto> => {
+        const response = await axiosInstance.get<OrderDto>(`/orders/${orderId}`);
+        return response.data;
+    },
 };

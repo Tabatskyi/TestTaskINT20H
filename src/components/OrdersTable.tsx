@@ -1,11 +1,13 @@
 import React, {useEffect, useState} from 'react';
 import {ordersService} from '../api/ordersService';
 import {OrderDto, OrderFilters, PageResponse} from '../api/types';
+import OrderDetails from "./OrderDetails.tsx";
 
 const OrdersTable: React.FC = () => {
     const [data, setData] = useState<PageResponse<OrderDto> | null>(null);
     const [filters, setFilters] = useState<OrderFilters>({page: 1, size: 10});
     const [loading, setLoading] = useState(false);
+    const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
     const fetchOrders = async () => {
         setLoading(true);
@@ -58,6 +60,7 @@ const OrdersTable: React.FC = () => {
                             <th>Tax</th>
                             <th>Total</th>
                             <th>Юрисдикції</th>
+                            <th>Деталі</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -69,10 +72,20 @@ const OrdersTable: React.FC = () => {
                                 <td>${order.tax_amount.toFixed(2)} ({order.composite_tax_rate * 100}%)</td>
                                 <td><strong>${order.total_amount.toFixed(2)}</strong></td>
                                 <td>{order.jurisdictions.join(', ')}</td>
+                                <td>
+                                    <button onClick={() => setSelectedOrderId(order.id)}>Деталі</button>
+                                </td>
                             </tr>
                         ))}
                         </tbody>
                     </table>
+
+                    {selectedOrderId && (
+                        <OrderDetails
+                            orderId={selectedOrderId}
+                            onClose={() => setSelectedOrderId(null)}
+                        />
+                    )}
 
                     {/* Пагінація */}
                     <div style={{marginTop: '10px', display: 'flex', gap: '5px'}}>
