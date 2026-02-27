@@ -2,7 +2,7 @@ import React, {useState} from 'react';
 import {ordersService} from '../api/ordersService';
 import {CreateOrderDto, OrderDto} from '../api/types';
 
-const CreateOrderForm: React.FC = () => {
+const CreateOrderForm: React.FC<{ onSuccess?: () => void }> = () => {
     const [formData, setFormData] = useState<CreateOrderDto>({
         latitude: 40.7128,
         longitude: -74.0060,
@@ -13,9 +13,6 @@ const CreateOrderForm: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null);
-        setResult(null);
-
         try {
             const data = await ordersService.createOrder(formData);
             setResult(data);
@@ -28,35 +25,14 @@ const CreateOrderForm: React.FC = () => {
     return (
         <div style={{padding: '20px', border: '1px solid #ccc', borderRadius: '8px'}}>
             <h2>Нове замовлення (Manual)</h2>
-            <form onSubmit={handleSubmit}>
-                <div>
-                    <label>Широта (Lat): </label>
-                    <input
-                        type="number" step="any"
-                        value={formData.latitude}
-                        onChange={e => setFormData({...formData, latitude: parseFloat(e.target.value)})}
-                        required
-                    />
-                </div>
-                <div>
-                    <label>Довгота (Lon): </label>
-                    <input
-                        type="number" step="any"
-                        value={formData.longitude}
-                        onChange={e => setFormData({...formData, longitude: parseFloat(e.target.value)})}
-                        required
-                    />
-                </div>
-                <div>
-                    <label>Сума ($): </label>
-                    <input
-                        type="number" step="0.01"
-                        value={formData.subtotal}
-                        onChange={e => setFormData({...formData, subtotal: parseFloat(e.target.value)})}
-                        required
-                    />
-                </div>
-                <button type="submit" style={{marginTop: '10px'}}>Розрахувати та створити</button>
+            <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                <input type="number" placeholder="Lat" value={formData.latitude}
+                       onChange={e => setFormData({...formData, latitude: parseFloat(e.target.value)})} required/>
+                <input type="number" placeholder="Lon" value={formData.longitude}
+                       onChange={e => setFormData({...formData, longitude: parseFloat(e.target.value)})} required/>
+                <input type="number" placeholder="Subtotal ($)" value={formData.subtotal}
+                       onChange={e => setFormData({...formData, subtotal: parseFloat(e.target.value)})} required/>
+                <button type="submit">Calculate & Create</button>
             </form>
 
             {error && <p style={{color: 'red'}}>{error}</p>}

@@ -2,6 +2,10 @@ import React, {useEffect, useState} from 'react';
 import {ordersService} from '../api/ordersService';
 import {OrderDto, OrderFilters, PageResponse} from '../api/types';
 import OrderDetails from "./OrderDetails.tsx";
+import Modal from './Modal';
+import IconButton from '@mui/material/IconButton';
+import InfoIcon from '@mui/icons-material/Info';
+import Tooltip from '@mui/material/Tooltip';
 
 const OrdersTable: React.FC = () => {
     const [data, setData] = useState<PageResponse<OrderDto> | null>(null);
@@ -37,7 +41,7 @@ const OrdersTable: React.FC = () => {
             {/* Панель фільтрів */}
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
                 gap: '10px',
                 marginBottom: '20px'
             }}>
@@ -72,20 +76,28 @@ const OrdersTable: React.FC = () => {
                                 <td>${order.tax_amount.toFixed(2)} ({order.composite_tax_rate * 100}%)</td>
                                 <td><strong>${order.total_amount.toFixed(2)}</strong></td>
                                 <td>{order.jurisdictions.join(', ')}</td>
-                                <td>
-                                    <button onClick={() => setSelectedOrderId(order.id)}>Деталі</button>
+                                <td style={{textAlign: 'center'}}>
+                                    <Tooltip title="Переглянути деталі">
+                                        <IconButton
+                                            color="primary"
+                                            onClick={() => setSelectedOrderId(order.id)}
+                                        >
+                                            <InfoIcon/>
+                                        </IconButton>
+                                    </Tooltip>
                                 </td>
                             </tr>
                         ))}
                         </tbody>
                     </table>
 
-                    {selectedOrderId && (
-                        <OrderDetails
-                            orderId={selectedOrderId}
-                            onClose={() => setSelectedOrderId(null)}
-                        />
-                    )}
+                    <Modal
+                        isOpen={!!selectedOrderId}
+                        onClose={() => setSelectedOrderId(null)}
+                        title={`Order Details: ${selectedOrderId?.substring(0, 8)}...`}
+                    >
+                        {selectedOrderId && <OrderDetails orderId={selectedOrderId}/>}
+                    </Modal>
 
                     {/* Пагінація */}
                     <div style={{marginTop: '10px', display: 'flex', gap: '5px'}}>
