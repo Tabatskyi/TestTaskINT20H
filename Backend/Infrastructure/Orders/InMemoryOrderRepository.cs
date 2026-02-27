@@ -1,3 +1,4 @@
+using NetTopologySuite.Geometries;
 using TestTaskINT20H.Domain.Orders.Entities;
 using TestTaskINT20H.Domain.Orders.Repositories;
 using TestTaskINT20H.Domain.Orders.Specifications;

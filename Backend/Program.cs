@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using System.Reflection;
 using TestTaskINT20H.Application.Orders.Mappers;
@@ -6,11 +7,19 @@ using TestTaskINT20H.Domain.Orders.Repositories;
 using TestTaskINT20H.Domain.Orders.Services;
 using TestTaskINT20H.Infrastructure.GIS;
 using TestTaskINT20H.Infrastructure.Orders;
+using TestTaskINT20H.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// PostGIS — EF Core with Npgsql + NetTopologySuite
+builder.Services.AddDbContext<OrderDbContext>(options =>
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        npgsql => npgsql.UseNetTopologySuite()
+    ));
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -37,10 +46,10 @@ builder.Services.AddSingleton(provider =>
 builder.Services.AddSingleton<ITaxCalculationService, TaxCalculationService>();
 
 // Infrastructure
-builder.Services.AddSingleton<IOrderRepository, InMemoryOrderRepository>();
+builder.Services.AddScoped<IOrderRepository, PostgresOrderRepository>();
 
 // Application Services
-builder.Services.AddSingleton<OrderApplicationService>();
+builder.Services.AddScoped<OrderApplicationService>();
 builder.Services.AddSingleton<CsvImportService>();
 builder.Services.AddSingleton<OrderMapper>();
 
