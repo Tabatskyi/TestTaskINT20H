@@ -9,3 +9,4 @@ ToDo:
 * [ ] review architecture
 * [ ] endpont for rejected impports (optional)
 * [ ] use some APIs instead of hardcoded domain (optional)
+* [ ] use CORS in Program.cs
