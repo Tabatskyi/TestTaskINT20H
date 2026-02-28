@@ -1,5 +1,5 @@
 build:
   docker:
     web: Dockerfile
-  config:
-    VITE_API_URL: ${VITE_API_URL}
+    config:
+      VITE_API_URL: https://wellness-kit-api-fd220228cda9.herokuapp.com
