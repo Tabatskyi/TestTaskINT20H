@@ -6,8 +6,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-# Declare build arg and expose it as an env var so Vite picks it up
-ARG VITE_API_URL
+# Set the API URL for Vite build
+# For local development, override with --build-arg VITE_API_URL=http://localhost:5000
+ARG VITE_API_URL=https://wellness-kit-api-fd220228cda9.herokuapp.com
 ENV VITE_API_URL=$VITE_API_URL
 
 COPY . .
