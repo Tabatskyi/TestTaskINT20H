@@ -53,15 +53,17 @@ builder.Services.AddAuthorization();
 
 // PostGIS — EF Core with Npgsql + NetTopologySuite
 // AddDbContextFactory registers IDbContextFactory<T> (singleton) and keeps OrderDbContext available as scoped
+var ordersConnection = GetConnectionString("ORDERS_DATABASE_URL", builder.Configuration.GetConnectionString("OrdersConnection"));
 builder.Services.AddDbContextFactory<OrderDbContext>(options =>
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("OrdersConnection"),
+        ordersConnection,
         npgsql => npgsql.UseNetTopologySuite()
     ));
 
 // Separate database for admin accounts
+var adminsConnection = GetConnectionString("ADMINS_DATABASE_URL", builder.Configuration.GetConnectionString("AdminsConnection"));
 builder.Services.AddDbContext<AdminDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("AdminsConnection")));
+    options.UseNpgsql(adminsConnection));
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -139,3 +141,16 @@ app.MapGet("/", () => Results.Redirect("/swagger"));
 app.MapControllers();
 
 app.Run();
+
+// Helper method to get connection string from Heroku URL or fallback to config
+static string? GetConnectionString(string herokuEnvVar, string? fallback)
+{
+    var herokuUrl = Environment.GetEnvironmentVariable(herokuEnvVar);
+    if (string.IsNullOrEmpty(herokuUrl))
+        return fallback;
+
+    // Convert postgres:// URL to Npgsql connection string
+    var uri = new Uri(herokuUrl);
+    var userInfo = uri.UserInfo.Split(':');
+    return $"Host={uri.Host};Port={uri.Port};Database={uri.LocalPath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+}

@@ -17,9 +17,6 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=build /app/publish .
 
-# Документуємо порт, що використовується контейнером. В компоузі буде юзатися для міжконтейнерного зв'язку
-EXPOSE 5000
-
-ENV ASPNETCORE_URLS=http://+:5000
-
-ENTRYPOINT ["dotnet", "TestTaskINT20H.dll"]
+# Heroku assigns a dynamic PORT via environment variable
+# Use shell form CMD to allow $PORT substitution at runtime
+CMD dotnet TestTaskINT20H.dll --urls http://0.0.0.0:${PORT:-5000}
