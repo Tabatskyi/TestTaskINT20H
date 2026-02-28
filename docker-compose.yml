@@ -2,21 +2,22 @@ services:
   db_orders:
     image: postgis/postgis:18-3.6-alpine
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD:-SuperSecretPassword123!}
+      POSTGRES_USER: ${ORDER_DB_USER}
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD}
       POSTGRES_DB: orders_db
+      PG_DATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data/pgdata
     networks:
       - wellness_kit_network
 
   db_admins:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${ADMIN_DB_PASSWORD:-SuperSecretPassword123!}
+      POSTGRES_USER: ${ADMIN_DB_USER}
+      POSTGRES_PASSWORD: ${ADMIN_DB_PASSWORD}
       POSTGRES_DB: admins_db
     ports:
       - "5433:5432"
@@ -31,9 +32,15 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__OrdersConnection=Host=db_orders;Port=5432;Database=orders_db;Username=postgres;Password=${ORDER_DB_PASSWORD:-SuperSecretPassword123!}
-      - ConnectionStrings__AdminsConnection=Host=db_admins;Port=5432;Database=admins_db;Username=postgres;Password=${ADMIN_DB_PASSWORD:-SuperSecretPassword123!}
+      - ASPNETCORE_ENVIRONMENT=Production
+      - AllowedHosts=${ALLOWED_HOSTS}
+      - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0}
+      - Cors__AllowedOrigins__1=${CORS_ALLOWED_ORIGINS_1}
+      - Jwt__Key=${JWT_KEY}
+      - DefaultAdmin__Username=${DEFAULT_ADMIN_USER}
+      - DefaultAdmin__Password=${DEFAULT_ADMIN_PASSWORD}
+      - ConnectionStrings__OrdersConnection=Host=db_orders;Port=5432;Database=orders_db;Username=${ORDER_DB_USER};Password=${ORDER_DB_PASSWORD}
+      - ConnectionStrings__AdminsConnection=Host=db_admins;Port=5432;Database=admins_db;Username=${ADMIN_DB_USER};Password=${ADMIN_DB_PASSWORD}
     depends_on:
       - db_orders
       - db_admins
@@ -44,7 +51,7 @@ services:
     build:
       context: ./Frontend
       args:
-        - VITE_API_URL=${VITE_API_URL:-http://localhost:5000}
+        - VITE_API_URL=${VITE_API_URL}
     ports:
       - "3000:80"
     depends_on:
