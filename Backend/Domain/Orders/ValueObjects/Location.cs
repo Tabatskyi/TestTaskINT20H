@@ -41,10 +41,4 @@ public sealed record Location
         return Latitude >= minLat && Latitude <= maxLat &&
                Longitude >= minLon && Longitude <= maxLon;
     }
-
-    public bool IsWithinBounds(double minLat, double maxLat, double minLon, double maxLon)
-    {
-        return Latitude >= minLat && Latitude <= maxLat &&
-               Longitude >= minLon && Longitude <= maxLon;
-    }
 }

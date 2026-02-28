@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using System.Text.Json;
 using TestTaskINT20H.Domain.Orders.Entities;
-using TestTaskINT20H.Domain.Orders.ValueObjects;
 
 namespace TestTaskINT20H.Infrastructure.Persistence;
 

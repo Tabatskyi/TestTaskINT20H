@@ -34,13 +34,21 @@ builder.Services.AddSwaggerGen(options =>
     options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
 });
 
-// GIS Services - load shapefile at startup
+// GIS Services - load shapefiles at startup
 builder.Services.AddSingleton(provider =>
 {
     var countyLookup = new ShapefileCountyLookupService();
     var shapefilePath = Path.Combine(AppContext.BaseDirectory, "Data", "ny_counties.shp");
     countyLookup.LoadShapefile(shapefilePath);
     return countyLookup;
+});
+
+builder.Services.AddSingleton(provider =>
+{
+    var cityLookup = new ShapefileCityLookupService();
+    var shapefilePath = Path.Combine(AppContext.BaseDirectory, "Data", "ny_places.shp");
+    cityLookup.LoadShapefile(shapefilePath);
+    return cityLookup;
 });
 
 // Domain Services

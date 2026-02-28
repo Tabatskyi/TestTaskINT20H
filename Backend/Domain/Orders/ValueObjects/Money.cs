@@ -13,7 +13,7 @@ public sealed record Money
     {
         if (amount < 0)
             throw new ArgumentException("Amount cannot be negative.", nameof(amount));
-        
+
         if (string.IsNullOrWhiteSpace(currency))
             throw new ArgumentException("Currency cannot be empty.", nameof(currency));
 
@@ -27,7 +27,7 @@ public sealed record Money
     {
         if (Currency != other.Currency)
             throw new InvalidOperationException($"Cannot add money with different currencies: {Currency} and {other.Currency}");
-        
+
         return new Money(Amount + other.Amount, Currency);
     }
 

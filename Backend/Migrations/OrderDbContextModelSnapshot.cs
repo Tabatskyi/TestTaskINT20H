@@ -42,29 +42,6 @@ namespace TestTaskINT20H.Migrations
 
             modelBuilder.Entity("TestTaskINT20H.Domain.Orders.Entities.Order", b =>
                 {
-                    b.OwnsOne("TestTaskINT20H.Domain.Orders.ValueObjects.Money", "Subtotal", b1 =>
-                        {
-                            b1.Property<Guid>("OrderId")
-                                .HasColumnType("uuid");
-
-                            b1.Property<decimal>("Amount")
-                                .HasColumnType("numeric(18,2)")
-                                .HasColumnName("subtotal_amount");
-
-                            b1.Property<string>("Currency")
-                                .IsRequired()
-                                .HasMaxLength(3)
-                                .HasColumnType("character varying(3)")
-                                .HasColumnName("subtotal_currency");
-
-                            b1.HasKey("OrderId");
-
-                            b1.ToTable("orders");
-
-                            b1.WithOwner()
-                                .HasForeignKey("OrderId");
-                        });
-
                     b.OwnsOne("TestTaskINT20H.Domain.Orders.ValueObjects.Location", "Location", b1 =>
                         {
                             b1.Property<Guid>("OrderId")
@@ -86,7 +63,30 @@ namespace TestTaskINT20H.Migrations
 
                             b1.HasKey("OrderId");
 
-                            b1.ToTable("orders");
+                            b1.ToTable("orders", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("OrderId");
+                        });
+
+                    b.OwnsOne("TestTaskINT20H.Domain.Orders.ValueObjects.Money", "Subtotal", b1 =>
+                        {
+                            b1.Property<Guid>("OrderId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<decimal>("Amount")
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("subtotal_amount");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .HasColumnType("character varying(3)")
+                                .HasColumnName("subtotal_currency");
+
+                            b1.HasKey("OrderId");
+
+                            b1.ToTable("orders", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("OrderId");
@@ -104,7 +104,7 @@ namespace TestTaskINT20H.Migrations
 
                             b1.HasKey("OrderId");
 
-                            b1.ToTable("orders");
+                            b1.ToTable("orders", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("OrderId");
@@ -132,7 +132,7 @@ namespace TestTaskINT20H.Migrations
 
                                     b2.HasKey("TaxCalculationOrderId");
 
-                                    b2.ToTable("orders");
+                                    b2.ToTable("orders", (string)null);
 
                                     b2.WithOwner()
                                         .HasForeignKey("TaxCalculationOrderId");
@@ -155,7 +155,7 @@ namespace TestTaskINT20H.Migrations
 
                                     b2.HasKey("TaxCalculationOrderId");
 
-                                    b2.ToTable("orders");
+                                    b2.ToTable("orders", (string)null);
 
                                     b2.WithOwner()
                                         .HasForeignKey("TaxCalculationOrderId");

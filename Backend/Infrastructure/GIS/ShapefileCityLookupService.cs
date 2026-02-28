@@ -1,0 +1,69 @@
+using NetTopologySuite.Geometries;
+using NetTopologySuite.IO.Esri;
+
+namespace TestTaskINT20H.Infrastructure.GIS;
+
+/// <summary>
+/// Service for looking up incorporated city/place boundaries from a NY State places shapefile.
+/// Loads all place features at startup and provides point-in-polygon lookups.
+/// Compatible with Census Bureau TIGER/Line place files (e.g. tl_YYYY_36_place.shp).
+/// </summary>
+public sealed class ShapefileCityLookupService : IDisposable
+{
+    private readonly List<CityFeature> _cities = [];
+    private bool _isLoaded;
+
+    public void LoadShapefile(string shapefilePath)
+    {
+        if (_isLoaded)
+            return;
+
+        foreach (var feature in Shapefile.ReadAllFeatures(shapefilePath))
+        {
+            var name = feature.Attributes["NAME"]?.ToString();
+            if (name is null)
+                continue;
+
+            _cities.Add(new CityFeature { Name = name, Geometry = feature.Geometry });
+        }
+
+        _isLoaded = true;
+    }
+
+    /// <summary>
+    /// Finds the city/place containing the given WGS84 point.
+    /// </summary>
+    /// <param name="point">WGS84 point (X = Longitude, Y = Latitude)</param>
+    /// <returns>City information if found, null otherwise</returns>
+    public CityInfo? FindCity(Point point)
+    {
+        if (!_isLoaded)
+            throw new InvalidOperationException("Shapefile has not been loaded. Call LoadShapefile first.");
+
+        foreach (var city in _cities)
+        {
+            if (city.Geometry.Contains(point))
+                return new CityInfo { Name = city.Name };
+        }
+
+        return null;
+    }
+
+    public int LoadedCityCount => _cities.Count;
+
+    public void Dispose() => _cities.Clear();
+
+    private sealed class CityFeature
+    {
+        public required string Name { get; init; }
+        public required Geometry Geometry { get; init; }
+    }
+}
+
+/// <summary>
+/// City information returned from shapefile lookup.
+/// </summary>
+public sealed class CityInfo
+{
+    public required string Name { get; init; }
+}

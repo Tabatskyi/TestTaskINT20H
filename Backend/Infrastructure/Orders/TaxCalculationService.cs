@@ -12,28 +12,30 @@ public sealed class TaxCalculationService : ITaxCalculationService
 {
     private const decimal NYStateRate = 0.04m;
     private const decimal DefaultCountyRate = 0.04m;
+    private const string MCTDJurisdictionName = "MCTD";
 
     private readonly ShapefileCountyLookupService _countyLookup;
+    private readonly ShapefileCityLookupService _cityLookup;
 
-    // Tax rates by county name (rates as of 2024)
+    // Tax rates by county name (rates as of 2026)
     private static readonly Dictionary<string, CountyTaxInfo> CountyTaxRates = new(StringComparer.OrdinalIgnoreCase)
     {
         // NYC boroughs (combined county + city + MCTD rate)
-        ["New York"] = new("New York City", 0.045m, 0.0m, 0.00375m),
-        ["Kings"] = new("New York City", 0.045m, 0.0m, 0.00375m),
-        ["Queens"] = new("New York City", 0.045m, 0.0m, 0.00375m),
-        ["Bronx"] = new("New York City", 0.045m, 0.0m, 0.00375m),
-        ["Richmond"] = new("New York City", 0.045m, 0.0m, 0.00375m),
+        ["New York"] = new("New York City", 0.0m, 0.045m, 0.00375m),
+        ["Kings"] = new("New York City", 0.0m, 0.045m, 0.00375m),
+        ["Queens"] = new("New York City", 0.0m, 0.045m, 0.00375m),
+        ["Bronx"] = new("New York City", 0.0m, 0.045m, 0.00375m),
+        ["Richmond"] = new("New York City", 0.0m, 0.045m, 0.00375m),
 
         // Long Island
-        ["Nassau"] = new(null, 0.04625m, 0.0m, 0.0m),
-        ["Suffolk"] = new(null, 0.04625m, 0.0m, 0.0m),
+        ["Nassau"] = new(null, 0.0425m, 0.0m, 0.00375m),
+        ["Suffolk"] = new(null, 0.04375m, 0.0m, 0.00375m),
 
         // Westchester (MCTD district)
-        ["Westchester"] = new(null, 0.0375m, 0.0m, 0.00375m),
+        ["Westchester"] = new(null, 0.04m, 0.0m, 0.00375m),
 
         // Other counties with specific rates
-        ["Erie"] = new(null, 0.04m, 0.0m, 0.0m),
+        ["Erie"] = new(null, 0.0475m, 0.0m, 0.0m),
         ["Monroe"] = new(null, 0.04m, 0.0m, 0.0m),
         ["Onondaga"] = new(null, 0.04m, 0.0m, 0.0m),
         ["Albany"] = new(null, 0.04m, 0.0m, 0.0m),
@@ -43,15 +45,41 @@ public sealed class TaxCalculationService : ITaxCalculationService
         ["Rockland"] = new(null, 0.04m, 0.0m, 0.00375m),
     };
 
-    // Cities with special tax rates (checked separately)
-    private static readonly CityTaxInfo[] SpecialCities =
-    [
-        new("Yonkers", "Westchester", 40.9126, 40.9787, -73.9075, -73.8265, 0.015m),
-    ];
+    // Cities with special tax rates (rates as of 2026)
+    private static readonly Dictionary<string, CityTaxInfo> SpecialCityRates = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Westchester County (MCTD transit district applies: 0.375%)
+        ["Mount Vernon"] = new("Mount Vernon", "Westchester", 0.04m, 0.00375m),
+        ["New Rochelle"] = new("New Rochelle", "Westchester", 0.04m, 0.00375m),
+        ["White Plains"] = new("White Plains", "Westchester", 0.04m, 0.00375m),
+        ["Yonkers"] = new("Yonkers", "Westchester", 0.045m, 0.00375m),
 
-    public TaxCalculationService(ShapefileCountyLookupService countyLookup)
+        // Oneida County
+        ["Rome"] = new("Rome", "Oneida", 0.0475m, 0.0m),
+        ["Utica"] = new("Utica", "Oneida", 0.0475m, 0.0m),
+
+        // Fulton County
+        ["Gloversville"] = new("Gloversville", "Fulton", 0.04m, 0.0m),
+        ["Johnstown"] = new("Johnstown", "Fulton", 0.04m, 0.0m),
+
+        // Cattaraugus County
+        ["Olean"] = new("Olean", "Cattaraugus", 0.04m, 0.0m),
+        ["Salamanca"] = new("Salamanca", "Cattaraugus", 0.04m, 0.0m),
+
+        // Other Independent Cities (Single city per county)
+        ["Auburn"] = new("Auburn", "Cayuga", 0.04m, 0.0m),
+        ["Glens Falls"] = new("Glens Falls", "Warren", 0.03m, 0.0m),
+        ["Ithaca"] = new("Ithaca", "Tompkins", 0.04m, 0.0m),
+        ["Norwich"] = new("Norwich", "Chenango", 0.04m, 0.0m),
+        ["Oneida"] = new("Oneida", "Madison", 0.04m, 0.0m),
+        ["Oswego"] = new("Oswego", "Oswego", 0.04m, 0.0m),
+        ["Saratoga Springs"] = new("Saratoga Springs", "Saratoga", 0.03m, 0.0m),
+    };
+
+    public TaxCalculationService(ShapefileCountyLookupService countyLookup, ShapefileCityLookupService cityLookup)
     {
         _countyLookup = countyLookup ?? throw new ArgumentNullException(nameof(countyLookup));
+        _cityLookup = cityLookup ?? throw new ArgumentNullException(nameof(cityLookup));
     }
 
     public TaxCalculation CalculateTax(Location location, Money subtotal)
@@ -70,35 +98,37 @@ public sealed class TaxCalculationService : ITaxCalculationService
         var specialCity = FindSpecialCity(location, countyInfo.Name);
 
         var taxInfo = GetCountyTaxInfo(countyInfo.Name);
+        var countyRate = specialCity is not null ? 0m : taxInfo.CountyRate;
         var cityRate = specialCity?.CityRate ?? taxInfo.CityRate;
-        var cityName = specialCity?.CityName;
+        var specialRates = specialCity?.SpecialRates ?? taxInfo.SpecialRates;
 
         var breakdown = new TaxBreakdown(
             NYStateRate,
-            taxInfo.CountyRate,
+            countyRate,
             cityRate,
-            taxInfo.SpecialRates
+            specialRates
         );
 
         var taxAmount = new Money(subtotal.Amount * breakdown.CompositeRate, subtotal.Currency);
 
-        var jurisdictions = BuildJurisdictionList(countyInfo, taxInfo, cityName);
+        var jurisdictions = BuildJurisdictionList(countyInfo, taxInfo, specialCity, specialRates);
 
         return new TaxCalculation(breakdown, taxAmount, jurisdictions.AsReadOnly());
     }
 
-    private static CityTaxInfo? FindSpecialCity(Location location, string countyName)
+    private CityTaxInfo? FindSpecialCity(Location location, string countyName)
     {
-        foreach (var city in SpecialCities)
-        {
-            if (!string.Equals(city.CountyName, countyName, StringComparison.OrdinalIgnoreCase))
-                continue;
+        var cityInfo = _cityLookup.FindCity(location.Point);
+        if (cityInfo is null)
+            return null;
 
-            if (location.IsWithinBounds(city.MinLat, city.MaxLat, city.MinLon, city.MaxLon))
-                return city;
-        }
+        if (!SpecialCityRates.TryGetValue(cityInfo.Name, out var taxInfo))
+            return null;
 
-        return null;
+        if (!string.Equals(taxInfo.CountyName, countyName, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        return taxInfo;
     }
 
     private static CountyTaxInfo GetCountyTaxInfo(string countyName)
@@ -111,36 +141,31 @@ public sealed class TaxCalculationService : ITaxCalculationService
     private static List<string> BuildJurisdictionList(
         CountyInfo countyInfo,
         CountyTaxInfo taxInfo,
-        string? cityName)
+        CityTaxInfo? specialCity,
+        decimal specialRates)
     {
         var jurisdictions = new List<string> { "New York State" };
 
-        // Add the overarching city if applicable (e.g., NYC)
-        if (taxInfo.CityGroupName is not null)
-        {
+        var countyRate = specialCity is not null ? 0m : taxInfo.CountyRate;
+
+        if (taxInfo.CityGroupName is not null && taxInfo.CityRate > 0)
             jurisdictions.Add(taxInfo.CityGroupName);
-        }
 
-        jurisdictions.Add(countyInfo.FullName);
+        if (countyRate > 0)
+            jurisdictions.Add(countyInfo.FullName);
 
-        if (cityName is not null)
-        {
-            jurisdictions.Add(cityName);
-        }
+        if (specialCity is not null)
+            jurisdictions.Add(specialCity.CityName);
+
+        if (specialRates > 0)
+            jurisdictions.Add(MCTDJurisdictionName);
 
         return jurisdictions;
     }
 
     private sealed record CountyTaxInfo(string? CityGroupName, decimal CountyRate, decimal CityRate, decimal SpecialRates);
 
-    private sealed record CityTaxInfo(
-        string CityName,
-        string CountyName,
-        double MinLat,
-        double MaxLat,
-        double MinLon,
-        double MaxLon,
-        decimal CityRate);
+    private sealed record CityTaxInfo(string CityName, string CountyName, decimal CityRate, decimal SpecialRates);
 
     public IReadOnlyList<JurisdictionInfo> GetJurisdictions(Location location)
     {
@@ -157,13 +182,18 @@ public sealed class TaxCalculationService : ITaxCalculationService
             new("New York State", "state", NYStateRate)
         };
 
+        var specialRates = specialCity?.SpecialRates ?? taxInfo.SpecialRates;
+
         if (taxInfo.CityGroupName is not null)
             result.Add(new(taxInfo.CityGroupName, "city_group", taxInfo.CityRate));
 
-        result.Add(new(countyInfo.FullName, "county", taxInfo.CountyRate));
+        result.Add(new(countyInfo.FullName, "county", specialCity is not null ? 0m : taxInfo.CountyRate));
 
         if (specialCity is not null)
             result.Add(new(specialCity.CityName, "city", specialCity.CityRate));
+
+        if (specialRates > 0)
+            result.Add(new(MCTDJurisdictionName, "special", specialRates));
 
         return result.AsReadOnly();
     }
@@ -191,7 +221,7 @@ public sealed class TaxCalculationService : ITaxCalculationService
         foreach (var group in cityGroups)
             result.Add(new(group.Key, "city_group", group.First().CityRate));
 
-        foreach (var city in SpecialCities.OrderBy(c => c.CityName))
+        foreach (var city in SpecialCityRates.Values.OrderBy(c => c.CityName))
             result.Add(new(city.CityName, "city", city.CityRate));
 
         return result.AsReadOnly();
