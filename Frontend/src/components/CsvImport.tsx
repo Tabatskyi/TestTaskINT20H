@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {ordersService} from '../api/ordersService';
 import {ImportOrdersResponse} from '../api/types';
+import '../CsvImport.css';
 
 const CsvImport: React.FC = () => {
     const [file, setFile] = useState<File | null>(null);
@@ -9,9 +10,10 @@ const CsvImport: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
+        if (e.target.files && e.target.files[0]) {
             setFile(e.target.files[0]);
             setError(null);
+            setReport(null);
         }
     };
 
@@ -20,11 +22,8 @@ const CsvImport: React.FC = () => {
             setError("Будь ласка, виберіть файл");
             return;
         }
-
         setLoading(true);
         setError(null);
-        setReport(null);
-
         try {
             const data = await ordersService.importCsv(file);
             setReport(data);
@@ -36,29 +35,57 @@ const CsvImport: React.FC = () => {
     };
 
     return (
-        <div style={{padding: '20px', border: '1px solid #ccc', borderRadius: '8px'}}>
-            <h2>Імпорт замовлень (CSV)</h2>
-            <div style={{marginBottom: '10px'}}>
-                <input type="file" accept=".csv" onChange={handleFileChange}/>
-                <button onClick={handleUpload} disabled={loading || !file}>
-                    {loading ? 'Завантаження...' : 'Завантажити та обробити'}
+        <div className="csv-import-container">
+            <div className={`upload-zone ${file ? 'file-selected' : ''}`}>
+                <input
+                    type="file"
+                    id="csv-file"
+                    accept=".csv"
+                    onChange={handleFileChange}
+                    className="file-input-hidden"
+                />
+                <label htmlFor="csv-file" className="file-label">
+                    <span className="upload-icon">📄</span>
+                    {file ? <strong>{file.name}</strong> : "Оберіть або перетягніть CSV файл"}
+                </label>
+            </div>
+
+            <div className="action-bar">
+                <button
+                    onClick={handleUpload}
+                    disabled={loading || !file}
+                    className={`import-btn ${loading ? 'loading' : ''}`}
+                >
+                    {loading ? 'Обробка...' : 'Завантажити та обробити'}
                 </button>
             </div>
 
-            {error && <p style={{color: 'red'}}>{error}</p>}
+            {error && <div className="import-error-msg">{error}</div>}
 
             {report && (
-                <div style={{backgroundColor: '#eef2ff', padding: '15px', borderRadius: '5px'}}>
-                    <p><strong>{report.message}</strong></p>
-                    <ul>
-                        <li>Імпортовано успішно: {report.importedCount}</li>
-                        <li>Пропущено рядків: {report.skippedCount}</li>
-                        <li>Час обробки: {report.processingTimeMs} мс</li>
-                    </ul>
+                <div className="import-report-card fade-in">
+                    <div className="report-header">
+                        <span className="success-icon">✅</span>
+                        <strong>{report.message}</strong>
+                    </div>
+                    <div className="report-stats">
+                        <div className="stat-item">
+                            <span>Успішно:</span>
+                            <span className="stat-value green">{report.importedCount}</span>
+                        </div>
+                        <div className="stat-item">
+                            <span>Пропущено:</span>
+                            <span className="stat-value yellow">{report.skippedCount}</span>
+                        </div>
+                        <div className="stat-item">
+                            <span>Час:</span>
+                            <span>{report.processingTimeMs} мс</span>
+                        </div>
+                    </div>
                     {report.skippedRows.length > 0 && (
-                        <details>
-                            <summary>Переглянути номери пропущених рядків</summary>
-                            <p style={{fontSize: '12px'}}>{report.skippedRows.join(', ')}</p>
+                        <details className="skipped-details">
+                            <summary>Номери пропущених рядків</summary>
+                            <p>{report.skippedRows.join(', ')}</p>
                         </details>
                     )}
                 </div>

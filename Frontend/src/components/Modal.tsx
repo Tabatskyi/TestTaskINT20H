@@ -1,4 +1,5 @@
 import React from 'react';
+import '../Modal.css';
 
 interface ModalProps {
     isOpen: boolean;
@@ -11,21 +12,25 @@ interface ModalProps {
 const Modal: React.FC<ModalProps> = ({isOpen, onClose, title, children, wide = false}) => {
     if (!isOpen) return null;
 
+    const handleOverlayClick = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget) onClose();
+    };
+
     return (
-        <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', zIndex: 1000
-        }}>
-            <div style={{
-                backgroundColor: 'white', padding: '20px', borderRadius: '8px',
-                width: '90%', maxWidth: wide ? '700px' : '500px', maxHeight: '90vh', overflowY: 'auto'
-            }}>
-                <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '15px'}}>
-                    <h2 style={{margin: 0}}>{title}</h2>
-                    <button onClick={onClose} style={{cursor: 'pointer'}}>✕</button>
+        <div className="modal-overlay" onClick={handleOverlayClick}>
+            <div className={`modal-content ${wide ? 'wide' : ''}`}>
+                <div className="modal-header">
+                    <h2>{title}</h2>
+                    <button className="modal-close-btn" onClick={onClose} aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
                 </div>
-                {children}
+                <div className="modal-body">
+                    {children}
+                </div>
             </div>
         </div>
     );

@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {authService} from '../api/authService';
 import {useAuth} from '../context/AuthContext';
+import '../Login.css';
 
 const LoginPage: React.FC = () => {
     const {login} = useAuth();
@@ -25,76 +26,41 @@ const LoginPage: React.FC = () => {
     };
 
     return (
-        <div style={{
-            display: 'flex', justifyContent: 'center', alignItems: 'center',
-            minHeight: '100vh', fontFamily: 'system-ui, sans-serif'
-        }}>
-            <div style={{
-                width: '100%', maxWidth: '380px', padding: '40px',
-                border: '1px solid #ddd', borderRadius: '12px',
-                backgroundColor: '#fff', boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
-            }}>
-                <h1 style={{textAlign: 'center', marginTop: 0, marginBottom: '8px', fontSize: '1.6em'}}>
-                    🚁 Drone Delivery
-                </h1>
-                <p style={{textAlign: 'center', color: '#666', marginBottom: '28px', fontSize: '0.9em'}}>
-                    Admin Panel Login
-                </p>
+        <div className="login-wrapper">
+            <div className="login-card">
+                <div className="login-header">
+                    <span className="drone-icon">🚁</span>
+                    <h1>Drone Delivery</h1>
+                    <p>Admin Panel Login</p>
+                </div>
 
-                <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '14px'}}>
-                    <div>
-                        <label style={{display: 'block', marginBottom: '4px', fontSize: '0.85em', fontWeight: 500}}>
-                            Username
-                        </label>
+                <form onSubmit={handleSubmit} className="login-form">
+                    <div className="input-group">
+                        <label>Username</label>
                         <input
                             type="text"
                             value={username}
                             onChange={e => setUsername(e.target.value)}
                             required
                             autoFocus
-                            style={{
-                                width: '100%', padding: '10px 12px', borderRadius: '6px',
-                                border: '1px solid #ccc', fontSize: '1em', boxSizing: 'border-box'
-                            }}
+                            placeholder="Enter your username"
                         />
                     </div>
-                    <div>
-                        <label style={{display: 'block', marginBottom: '4px', fontSize: '0.85em', fontWeight: 500}}>
-                            Password
-                        </label>
+                    <div className="input-group">
+                        <label>Password</label>
                         <input
                             type="password"
                             value={password}
                             onChange={e => setPassword(e.target.value)}
                             required
-                            style={{
-                                width: '100%', padding: '10px 12px', borderRadius: '6px',
-                                border: '1px solid #ccc', fontSize: '1em', boxSizing: 'border-box'
-                            }}
+                            placeholder="••••••••"
                         />
                     </div>
 
-                    {error && (
-                        <p style={{
-                            color: '#d32f2f', backgroundColor: '#fdecea',
-                            padding: '8px 12px', borderRadius: '6px',
-                            margin: 0, fontSize: '0.9em'
-                        }}>
-                            {error}
-                        </p>
-                    )}
+                    {error && <div className="error-message">{error}</div>}
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        style={{
-                            padding: '12px', borderRadius: '6px', border: 'none',
-                            backgroundColor: '#1976d2', color: '#fff', fontSize: '1em',
-                            fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
-                            opacity: loading ? 0.7 : 1
-                        }}
-                    >
-                        {loading ? 'Signing in…' : 'Sign In'}
+                    <button type="submit" disabled={loading} className="submit-button">
+                        {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
             </div>

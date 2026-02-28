@@ -6,6 +6,7 @@ import Modal from './Modal';
 import IconButton from '@mui/material/IconButton';
 import InfoIcon from '@mui/icons-material/Info';
 import Tooltip from '@mui/material/Tooltip';
+import '../OrdersTable.css';
 
 const OrdersTable: React.FC = () => {
     const [data, setData] = useState<PageResponse<OrderDto> | null>(null);
@@ -27,44 +28,62 @@ const OrdersTable: React.FC = () => {
 
     useEffect(() => {
         fetchOrders();
-    }, [filters.page, filters.size]); // Перезавантажуємо при зміні сторінки
+    }, [filters.page, filters.size]);
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const {name, value} = e.target;
-        setFilters(prev => ({...prev, [name]: value, page: 1})); // Скидаємо на 1 сторінку при зміні фільтрів
+        setFilters(prev => ({...prev, [name]: value, page: 1}));
     };
 
     return (
-        <div style={{marginTop: '30px'}}>
-            <h2>Список замовлень</h2>
-
-            {/* Панель фільтрів */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-                gap: '10px',
-                marginBottom: '20px'
-            }}>
-                <input type="date" name="from_date" onChange={handleFilterChange} placeholder="Від дати"/>
-                <input type="date" name="to_date" onChange={handleFilterChange} placeholder="До дати"/>
-                <input type="number" name="min_total" onChange={handleFilterChange} placeholder="Мін. сума"/>
-                <input type="number" name="max_total" onChange={handleFilterChange} placeholder="Макс. сума"/>
-                <input type="text" name="jurisdiction" onChange={handleFilterChange} placeholder="Юрисдикція"/>
-                <button onClick={fetchOrders}>Застосувати</button>
+        <div className="orders-section">
+            <div className="section-header">
+                <h2>Список замовлень</h2>
+                <div className="pagination-controls mini">
+                    <span>Сторінка {data?.pageNumber || 1} з {data?.totalPages || 1}</span>
+                </div>
             </div>
 
-            {loading ? <p>Завантаження...</p> : (
-                <>
-                    <table border={1} style={{width: '100%', borderCollapse: 'collapse'}}>
+            <div className="filters-grid">
+                <div className="filter-item">
+                    <label>Від дати</label>
+                    <input type="date" name="from_date" onChange={handleFilterChange} />
+                </div>
+                <div className="filter-item">
+                    <label>До дати</label>
+                    <input type="date" name="to_date" onChange={handleFilterChange} />
+                </div>
+                <div className="filter-item">
+                    <label>Мін. сума</label>
+                    <input type="number" name="min_total" onChange={handleFilterChange} placeholder="0.00" />
+                </div>
+                <div className="filter-item">
+                    <label>Макс. сума</label>
+                    <input type="number" name="max_total" onChange={handleFilterChange} placeholder="9999" />
+                </div>
+                <div className="filter-item">
+                    <label>Юрисдикція</label>
+                    <input type="text" name="jurisdiction" onChange={handleFilterChange} placeholder="Назва..." />
+                </div>
+                <button className="apply-filters-btn" onClick={fetchOrders}>
+                    Застосувати
+                </button>
+            </div>
+
+            {loading ? (
+                <div className="table-loader">Завантаження даних...</div>
+            ) : (
+                <div className="table-wrapper fade-in">
+                    <table className="glass-table">
                         <thead>
-                        <tr style={{backgroundColor: '#f2f2f2'}}>
+                        <tr>
                             <th>Дата</th>
                             <th>Координати</th>
                             <th>Subtotal</th>
                             <th>Tax</th>
                             <th>Total</th>
                             <th>Юрисдикції</th>
-                            <th>Деталі</th>
+                            <th className="text-center">Деталі</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -73,16 +92,19 @@ const OrdersTable: React.FC = () => {
                                 <td>{new Date(order.timestamp).toLocaleString()}</td>
                                 <td>{order.latitude.toFixed(4)}, {order.longitude.toFixed(4)}</td>
                                 <td>${order.subtotal.toFixed(2)}</td>
-                                <td>${order.tax_amount.toFixed(2)} ({order.composite_tax_rate * 100}%)</td>
-                                <td><strong>${order.total_amount.toFixed(2)}</strong></td>
-                                <td>{order.jurisdictions.join(', ')}</td>
-                                <td style={{textAlign: 'center'}}>
+                                <td className="tax-col">
+                                    ${order.tax_amount.toFixed(2)}
+                                    <span className="tax-percent">({(order.composite_tax_rate * 100).toFixed(2)}%)</span>
+                                </td>
+                                <td><strong className="total-amount">${order.total_amount.toFixed(2)}</strong></td>
+                                <td className="juris-cell">{order.jurisdictions.join(', ')}</td>
+                                <td className="text-center">
                                     <Tooltip title="Переглянути деталі">
                                         <IconButton
-                                            color="primary"
+                                            className="info-btn"
                                             onClick={() => setSelectedOrderId(order.id)}
                                         >
-                                            <InfoIcon/>
+                                            <InfoIcon />
                                         </IconButton>
                                     </Tooltip>
                                 </td>
@@ -91,31 +113,47 @@ const OrdersTable: React.FC = () => {
                         </tbody>
                     </table>
 
-                    <Modal
-                        isOpen={!!selectedOrderId}
-                        onClose={() => setSelectedOrderId(null)}
-                        title={`Order Details: ${selectedOrderId?.substring(0, 8)}...`}
-                        wide
-                    >
-                        {selectedOrderId && <OrderDetails orderId={selectedOrderId}/>}
-                    </Modal>
-
-                    {/* Пагінація */}
-                    <div style={{marginTop: '10px', display: 'flex', gap: '5px'}}>
+                    {/* Пагінація у футері таблиці */}
+                    <div className="pagination-footer">
                         <button
+                            className="page-btn prev"
                             disabled={filters.page === 1}
                             onClick={() => setFilters(p => ({...p, page: (p.page || 1) - 1}))}
-                        > Назад
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                            <span>Назад</span>
                         </button>
-                        <span>Сторінка {data?.pageNumber} з {data?.totalPages}</span>
+
+                        <div className="page-indicator">
+                            <span className="current-page">{data?.pageNumber}</span>
+                            <span className="divider">/</span>
+                            <span className="total-pages">{data?.totalPages}</span>
+                        </div>
+
                         <button
+                            className="page-btn next"
                             disabled={filters.page === data?.totalPages}
                             onClick={() => setFilters(p => ({...p, page: (p.page || 1) + 1}))}
-                        > Вперед
+                        >
+                            <span>Вперед</span>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
                         </button>
                     </div>
-                </>
+                </div>
             )}
+
+            <Modal
+                isOpen={!!selectedOrderId}
+                onClose={() => setSelectedOrderId(null)}
+                title={`Order Details: ${selectedOrderId?.substring(0, 8)}...`}
+                wide
+            >
+                {selectedOrderId && <OrderDetails orderId={selectedOrderId}/>}
+            </Modal>
         </div>
     );
 };
