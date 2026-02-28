@@ -136,7 +136,7 @@ public sealed class CsvImportService
             !string.IsNullOrEmpty(values[indices.Timestamp]))
         {
             if (DateTime.TryParse(values[indices.Timestamp], CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out var parsedTimestamp))
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsedTimestamp))
             {
                 timestamp = parsedTimestamp;
             }
