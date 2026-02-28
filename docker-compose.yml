@@ -1,35 +1,43 @@
 services:
-  db:
-    # Points to the folder containing your PostGIS Dockerfile
+  db_orders:
     build: 
       context: ./Database
     environment:
       POSTGRES_USER: postgres
-      # Using a default password here for local dev convenience, 
-      # but it can be overridden by a .env file
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-SuperSecretPassword123!}
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD:-SuperSecretPassword123!}
       POSTGRES_DB: orders_db
     ports:
-      - "5432:5432" # Keeps the port open so you can connect from pgAdmin/DBeaver on your host
+      - "5432:5432"
     volumes:
-      # This maps the database data to a persistent Docker volume
-      # so your orders aren't wiped out every time you restart the container
       - pgdata:/var/lib/postgresql/data
     networks:
       - wellness_kit_network
 
+  db_admins:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${ADMIN_DB_PASSWORD:-SuperSecretPassword123!}
+      POSTGRES_DB: admins_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata_admins:/var/lib/postgresql/data
+    networks:
+      - wellness_kit_network
+
   backend:
-    # Points to the folder containing your ASP.NET Dockerfile
     build:
       context: ./Backend
     ports:
       - "5000:5000"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      # Notice the Host is 'db', which exactly matches the service name above
-      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=orders_db;Username=postgres;Password=${DB_PASSWORD:-SuperSecretPassword123!}
+      - ConnectionStrings__OrdersConnection=Host=db_orders;Port=5432;Database=orders_db;Username=postgres;Password=${ORDER_DB_PASSWORD:-SuperSecretPassword123!}
+      - ConnectionStrings__AdminsConnection=Host=db_admins;Port=5432;Database=admins_db;Username=postgres;Password=${ADMIN_DB_PASSWORD:-SuperSecretPassword123!}
     depends_on:
-      - db
+      - db_orders
+      - db_admins
     networks:
       - wellness_kit_network
 
@@ -37,7 +45,6 @@ services:
     build:
       context: ./Frontend
       args:
-        # Vite bakes VITE_* vars into the bundle at build time, so they must be build args
         - VITE_API_URL=${VITE_API_URL:-http://localhost:5000}
     ports:
       - "3000:80"
@@ -46,11 +53,10 @@ services:
     networks:
       - wellness_kit_network
 
-# Define the persistent volume for the database
 volumes:
   pgdata:
+  pgdata_admins:
 
-# Define a custom bridge network for the containers to communicate securely
 networks:
   wellness_kit_network:
     driver: bridge
