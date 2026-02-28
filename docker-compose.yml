@@ -13,11 +13,11 @@ services:
     networks:
       - wellness_kit_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${ORDER_DB_USER} -d orders_db"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 10s
+      start_period: 15s
 
   db_admins:
     image: postgres:17-alpine
@@ -32,11 +32,11 @@ services:
     networks:
       - wellness_kit_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${ADMIN_DB_USER} -d admins_db"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 10s
+      start_period: 15s
 
   backend:
     build:
