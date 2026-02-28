@@ -5,9 +5,10 @@ interface ModalProps {
     onClose: () => void;
     title: string;
     children: React.ReactNode;
+    wide?: boolean;
 }
 
-const Modal: React.FC<ModalProps> = ({isOpen, onClose, title, children}) => {
+const Modal: React.FC<ModalProps> = ({isOpen, onClose, title, children, wide = false}) => {
     if (!isOpen) return null;
 
     return (
@@ -18,7 +19,7 @@ const Modal: React.FC<ModalProps> = ({isOpen, onClose, title, children}) => {
         }}>
             <div style={{
                 backgroundColor: 'white', padding: '20px', borderRadius: '8px',
-                width: '90%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto'
+                width: '90%', maxWidth: wide ? '700px' : '500px', maxHeight: '90vh', overflowY: 'auto'
             }}>
                 <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '15px'}}>
                     <h2 style={{margin: 0}}>{title}</h2>

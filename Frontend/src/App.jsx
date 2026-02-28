@@ -1,11 +1,14 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
+import {AuthProvider, useAuth} from './context/AuthContext';
+import LoginPage from './components/LoginPage';
 import CreateOrderForm from './components/CreateOrderForm';
 import CsvImport from './components/CsvImport';
 import OrdersTable from './components/OrdersTable';
 import Modal from './components/Modal';
 import './App.css'
 
-function App() {
+function AdminPanel() {
+    const {logout} = useAuth();
     const [isOrderModalOpen, setOrderModalOpen] = useState(false);
     const [isImportModalOpen, setImportModalOpen] = useState(false);
 
@@ -17,12 +20,15 @@ function App() {
                 <div style={{display: 'flex', gap: '10px'}}>
                     <button onClick={() => setOrderModalOpen(true)} style={btnStyle}>+ New Order</button>
                     <button onClick={() => setImportModalOpen(true)} style={btnStyle}>↑ Import CSV</button>
+                    <button onClick={logout} style={{...btnStyle, backgroundColor: '#ffebee', color: '#c62828'}}>
+                        Logout
+                    </button>
                 </div>
             </header>
 
             <OrdersTable/>
 
-            <Modal isOpen={isOrderModalOpen} onClose={() => setOrderModalOpen(false)} title="Create New Order">
+            <Modal isOpen={isOrderModalOpen} onClose={() => setOrderModalOpen(false)} title="Create New Order" wide>
                 <CreateOrderForm onSuccess={() => setOrderModalOpen(false)}/>
             </Modal>
 
@@ -30,6 +36,31 @@ function App() {
                 <CsvImport/>
             </Modal>
         </div>
+    );
+}
+
+function AppContent() {
+    const {isAuthenticated, logout} = useAuth();
+
+    // Listen for auth-expired events from axios interceptor
+    useEffect(() => {
+        const handler = () => logout();
+        window.addEventListener('auth-expired', handler);
+        return () => window.removeEventListener('auth-expired', handler);
+    }, [logout]);
+
+    if (!isAuthenticated) {
+        return <LoginPage/>;
+    }
+
+    return <AdminPanel/>;
+}
+
+function App() {
+    return (
+        <AuthProvider>
+            <AppContent/>
+        </AuthProvider>
     );
 }
 

@@ -95,6 +95,7 @@ const OrdersTable: React.FC = () => {
                         isOpen={!!selectedOrderId}
                         onClose={() => setSelectedOrderId(null)}
                         title={`Order Details: ${selectedOrderId?.substring(0, 8)}...`}
+                        wide
                     >
                         {selectedOrderId && <OrderDetails orderId={selectedOrderId}/>}
                     </Modal>
