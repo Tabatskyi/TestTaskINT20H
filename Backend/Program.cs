@@ -14,6 +14,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+builder.Services.AddCors(options =>
+{
+    var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+    options.AddPolicy("Default", policy => policy
+        .WithOrigins(origins)
+        .AllowAnyMethod()
+        .AllowAnyHeader());
+});
+
 // PostGIS — EF Core with Npgsql + NetTopologySuite
 // AddDbContextFactory registers IDbContextFactory<T> (singleton) and keeps OrderDbContext available as scoped
 builder.Services.AddDbContextFactory<OrderDbContext>(options =>
@@ -66,6 +75,8 @@ var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseCors("Default");
 
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
