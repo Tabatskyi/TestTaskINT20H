@@ -1,18 +1,22 @@
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Geometries.Prepared;
+using NetTopologySuite.Index.Strtree;
 using NetTopologySuite.IO.Esri;
 
 namespace TestTaskINT20H.Infrastructure.GIS;
 
 /// <summary>
 /// Service for looking up county information from shapefiles using NetTopologySuite.
-/// Loads NY State county boundaries at startup and provides point-in-polygon lookups.
+/// Uses STRtree spatial index and PreparedGeometry for fast point-in-polygon lookups.
 /// </summary>
 public sealed class ShapefileCountyLookupService : IDisposable
 {
     private const string NYStateFips = "36"; // New York State FIPS code
     private readonly List<CountyFeature> _nyCounties = [];
+    private readonly STRtree<CountyFeature> _spatialIndex = new();
     private readonly GeometryFactory _geometryFactory = new(new PrecisionModel(), 4326); // WGS84
     private bool _isLoaded;
+    private bool _isIndexBuilt;
 
     public void LoadShapefile(string shapefilePath)
     {
@@ -33,20 +37,28 @@ public sealed class ShapefileCountyLookupService : IDisposable
             var countyFips = feature.Attributes["COUNTYFP"]?.ToString() ?? "";
             var geometry = feature.Geometry;
 
-            _nyCounties.Add(new CountyFeature
+            var countyFeature = new CountyFeature
             {
                 Name = countyName,
                 FullName = $"{countyName} County",
                 CountyFips = countyFips,
-                Geometry = geometry
-            });
+                Geometry = geometry,
+                PreparedGeometry = PreparedGeometryFactory.Prepare(geometry)
+            };
+
+            _nyCounties.Add(countyFeature);
+            _spatialIndex.Insert(geometry.EnvelopeInternal, countyFeature);
         }
 
+        // Build the spatial index for fast queries
+        _spatialIndex.Build();
+        _isIndexBuilt = true;
         _isLoaded = true;
     }
 
     /// <summary>
     /// Finds the county containing the given WGS84 point.
+    /// Uses spatial index for O(log n) bounding box lookup, then precise containment test.
     /// </summary>
     /// <param name="point">WGS84 point (X = Longitude, Y = Latitude)</param>
     /// <returns>County information if found, null otherwise</returns>
@@ -55,9 +67,12 @@ public sealed class ShapefileCountyLookupService : IDisposable
         if (!_isLoaded)
             throw new InvalidOperationException("Shapefile has not been loaded. Call LoadShapefile first.");
 
-        foreach (var county in _nyCounties)
+        var candidates = _spatialIndex.Query(point.EnvelopeInternal);
+
+        // Check precise containment using PreparedGeometry (optimized for repeated tests)
+        foreach (var county in candidates)
         {
-            if (county.Geometry.Contains(point))
+            if (county.PreparedGeometry.Contains(point))
             {
                 return new CountyInfo
                 {
@@ -84,9 +99,7 @@ public sealed class ShapefileCountyLookupService : IDisposable
     /// Checks if the given coordinates are within New York State.
     /// </summary>
     public bool IsInNewYorkState(double latitude, double longitude)
-    {
-        return FindCounty(latitude, longitude) is not null;
-    }
+        => FindCounty(latitude, longitude) is not null;
 
     public int LoadedCountyCount => _nyCounties.Count;
 
@@ -104,6 +117,7 @@ public sealed class ShapefileCountyLookupService : IDisposable
         public required string FullName { get; init; }
         public required string CountyFips { get; init; }
         public required Geometry Geometry { get; init; }
+        public required IPreparedGeometry PreparedGeometry { get; init; }
     }
 }
 
