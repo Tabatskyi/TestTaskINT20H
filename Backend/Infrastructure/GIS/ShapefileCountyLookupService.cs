@@ -90,6 +90,9 @@ public sealed class ShapefileCountyLookupService : IDisposable
 
     public int LoadedCountyCount => _nyCounties.Count;
 
+    public IReadOnlyList<string> GetAllCountyNames()
+        => _nyCounties.Select(c => c.FullName).ToList().AsReadOnly();
+
     public void Dispose()
     {
         _nyCounties.Clear();

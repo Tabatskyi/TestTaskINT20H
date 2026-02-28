@@ -141,4 +141,59 @@ public sealed class TaxCalculationService : ITaxCalculationService
         double MinLon,
         double MaxLon,
         decimal CityRate);
+
+    public IReadOnlyList<JurisdictionInfo> GetJurisdictions(Location location)
+    {
+        var countyInfo = _countyLookup.FindCounty(location.Point);
+
+        if (countyInfo is null)
+            return [];
+
+        var specialCity = FindSpecialCity(location, countyInfo.Name);
+        var taxInfo = GetCountyTaxInfo(countyInfo.Name);
+
+        var result = new List<JurisdictionInfo>
+        {
+            new("New York State", "state", NYStateRate)
+        };
+
+        if (taxInfo.CityGroupName is not null)
+            result.Add(new(taxInfo.CityGroupName, "city_group", taxInfo.CityRate));
+
+        result.Add(new(countyInfo.FullName, "county", taxInfo.CountyRate));
+
+        if (specialCity is not null)
+            result.Add(new(specialCity.CityName, "city", specialCity.CityRate));
+
+        return result.AsReadOnly();
+    }
+
+    public IReadOnlyList<JurisdictionInfo> GetAllJurisdictions()
+    {
+        var result = new List<JurisdictionInfo>
+        {
+            new("New York State", "state", NYStateRate)
+        };
+
+        foreach (var countyFullName in _countyLookup.GetAllCountyNames().OrderBy(n => n))
+        {
+            var baseName = countyFullName.EndsWith(" County", StringComparison.OrdinalIgnoreCase)
+                ? countyFullName[..^7]
+                : countyFullName;
+            result.Add(new(countyFullName, "county", GetCountyTaxInfo(baseName).CountyRate));
+        }
+
+        var cityGroups = CountyTaxRates.Values
+            .Where(t => t.CityGroupName is not null)
+            .GroupBy(t => t.CityGroupName!, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => g.Key);
+
+        foreach (var group in cityGroups)
+            result.Add(new(group.Key, "city_group", group.First().CityRate));
+
+        foreach (var city in SpecialCities.OrderBy(c => c.CityName))
+            result.Add(new(city.CityName, "city", city.CityRate));
+
+        return result.AsReadOnly();
+    }
 }
