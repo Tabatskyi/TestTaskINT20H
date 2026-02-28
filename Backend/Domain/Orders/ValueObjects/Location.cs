@@ -30,15 +30,4 @@ public sealed record Location
         Latitude = latitude;
         Longitude = longitude;
     }
-
-    public bool IsInNewYorkState()
-    {
-        const double minLat = 40.4961;
-        const double maxLat = 45.0159;
-        const double minLon = -79.7624;
-        const double maxLon = -71.8562;
-
-        return Latitude >= minLat && Latitude <= maxLat &&
-               Longitude >= minLon && Longitude <= maxLon;
-    }
 }

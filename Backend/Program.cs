@@ -91,7 +91,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // GIS Services - load shapefiles at startup
-builder.Services.AddSingleton(provider =>
+builder.Services.AddSingleton<ICountyLookupService>(provider =>
 {
     var countyLookup = new ShapefileCountyLookupService();
     var shapefilePath = Path.Combine(AppContext.BaseDirectory, "Data", "ny_counties.shp");
@@ -99,7 +99,7 @@ builder.Services.AddSingleton(provider =>
     return countyLookup;
 });
 
-builder.Services.AddSingleton(provider =>
+builder.Services.AddSingleton<ICityLookupService>(provider =>
 {
     var cityLookup = new ShapefileCityLookupService();
     var shapefilePath = Path.Combine(AppContext.BaseDirectory, "Data", "ny_places.shp");

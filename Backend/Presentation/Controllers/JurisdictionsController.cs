@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TestTaskINT20H.Application.Orders.DTOs;
+using TestTaskINT20H.Application.Shared;
 using TestTaskINT20H.Domain.Orders.Services;
 using TestTaskINT20H.Domain.Orders.ValueObjects;
 

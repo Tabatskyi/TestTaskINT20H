@@ -6,9 +6,16 @@ namespace TestTaskINT20H.Domain.Orders.ValueObjects;
 /// </summary>
 public sealed record TaxCalculation
 {
+    public const string OutOfStateJurisdiction = "Out of State";
+
     public TaxBreakdown Breakdown { get; init; }
     public Money TaxAmount { get; init; }
     public IReadOnlyList<string> Jurisdictions { get; init; }
+
+    /// <summary>
+    /// True when the location falls outside the taxable jurisdiction.
+    /// </summary>
+    public bool IsOutOfState => Jurisdictions.Contains(OutOfStateJurisdiction);
 
     // Parameterless constructor for EF Core — owned navigations cannot be bound via constructor parameters
     private TaxCalculation() { }

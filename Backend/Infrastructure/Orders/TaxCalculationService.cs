@@ -1,6 +1,5 @@
 using TestTaskINT20H.Domain.Orders.Services;
 using TestTaskINT20H.Domain.Orders.ValueObjects;
-using TestTaskINT20H.Infrastructure.GIS;
 
 namespace TestTaskINT20H.Infrastructure.Orders;
 
@@ -14,8 +13,8 @@ public sealed class TaxCalculationService : ITaxCalculationService
     private const decimal DefaultCountyRate = 0.04m;
     private const string MCTDJurisdictionName = "MCTD";
 
-    private readonly ShapefileCountyLookupService _countyLookup;
-    private readonly ShapefileCityLookupService _cityLookup;
+    private readonly ICountyLookupService _countyLookup;
+    private readonly ICityLookupService _cityLookup;
 
     // Tax rates by county name (rates as of 2026)
     private static readonly Dictionary<string, CountyTaxInfo> CountyTaxRates = new(StringComparer.OrdinalIgnoreCase)
@@ -76,7 +75,7 @@ public sealed class TaxCalculationService : ITaxCalculationService
         ["Saratoga Springs"] = new("Saratoga Springs", "Saratoga", 0.03m, 0.0m),
     };
 
-    public TaxCalculationService(ShapefileCountyLookupService countyLookup, ShapefileCityLookupService cityLookup)
+    public TaxCalculationService(ICountyLookupService countyLookup, ICityLookupService cityLookup)
     {
         _countyLookup = countyLookup ?? throw new ArgumentNullException(nameof(countyLookup));
         _cityLookup = cityLookup ?? throw new ArgumentNullException(nameof(cityLookup));
@@ -91,7 +90,7 @@ public sealed class TaxCalculationService : ITaxCalculationService
         {
             var noTaxBreakdown = new TaxBreakdown(0.0m, 0.0m, 0.0m, 0.0m);
             var noTax = new Money(0.0m, subtotal.Currency);
-            return new TaxCalculation(noTaxBreakdown, noTax, new List<string> { "Out of State" }.AsReadOnly());
+            return new TaxCalculation(noTaxBreakdown, noTax, new List<string> { TaxCalculation.OutOfStateJurisdiction }.AsReadOnly());
         }
 
         // Check for special city rates first
@@ -139,7 +138,7 @@ public sealed class TaxCalculationService : ITaxCalculationService
     }
 
     private static List<string> BuildJurisdictionList(
-        CountyInfo countyInfo,
+        CountyResult countyInfo,
         CountyTaxInfo taxInfo,
         CityTaxInfo? specialCity,
         decimal specialRates)
