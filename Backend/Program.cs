@@ -1,10 +1,17 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Reflection;
+using System.Text;
+using TestTaskINT20H.Application.Auth.Services;
 using TestTaskINT20H.Application.Orders.Mappers;
 using TestTaskINT20H.Application.Orders.Services;
+using TestTaskINT20H.Domain.Auth.Repositories;
+using TestTaskINT20H.Domain.Auth.Services;
 using TestTaskINT20H.Domain.Orders.Repositories;
 using TestTaskINT20H.Domain.Orders.Services;
+using TestTaskINT20H.Infrastructure.Auth;
 using TestTaskINT20H.Infrastructure.GIS;
 using TestTaskINT20H.Infrastructure.Orders;
 using TestTaskINT20H.Infrastructure.Persistence;
@@ -23,13 +30,38 @@ builder.Services.AddCors(options =>
         .AllowAnyHeader());
 });
 
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+    throw new InvalidOperationException("Jwt:Key is not configured. Set it via appsettings or the Jwt__Key environment variable.");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 // PostGIS — EF Core with Npgsql + NetTopologySuite
 // AddDbContextFactory registers IDbContextFactory<T> (singleton) and keeps OrderDbContext available as scoped
 builder.Services.AddDbContextFactory<OrderDbContext>(options =>
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
+        builder.Configuration.GetConnectionString("OrdersConnection"),
         npgsql => npgsql.UseNetTopologySuite()
     ));
+
+// Separate database for admin accounts
+builder.Services.AddDbContext<AdminDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("AdminsConnection")));
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -63,8 +95,15 @@ builder.Services.AddSingleton(provider =>
 // Domain Services
 builder.Services.AddSingleton<ITaxCalculationService, TaxCalculationService>();
 
+// Auth
+builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
+builder.Services.AddSingleton<ITokenService, JwtTokenService>();
+builder.Services.AddScoped<IAdminRepository, AdminRepository>();
+builder.Services.AddScoped<AuthApplicationService>();
+
 // Infrastructure
 builder.Services.AddScoped<IOrderRepository, PostgresOrderRepository>();
+builder.Services.AddHostedService<DatabaseInitializer>();
 
 // Application Services
 builder.Services.AddScoped<OrderApplicationService>();
@@ -77,6 +116,8 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseCors("Default");
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/", () => Results.Redirect("/swagger"));
 

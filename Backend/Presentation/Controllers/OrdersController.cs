@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TestTaskINT20H.Application.Orders.DTOs;
 using TestTaskINT20H.Application.Orders.Services;
@@ -8,6 +9,7 @@ namespace TestTaskINT20H.Presentation.Controllers;
 [ApiController]
 [Route("orders")]
 [Produces("application/json")]
+[Authorize]
 public sealed class OrdersController(OrderApplicationService orderService, CsvImportService csvImportService) : ControllerBase
 {
     private readonly OrderApplicationService _orderService = orderService ?? throw new ArgumentNullException(nameof(orderService));
