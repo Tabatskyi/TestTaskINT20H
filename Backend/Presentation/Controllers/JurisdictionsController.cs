@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using TestTaskINT20H.Application.Orders.DTOs;
 using TestTaskINT20H.Domain.Orders.Services;
 using TestTaskINT20H.Domain.Orders.ValueObjects;
@@ -8,6 +9,7 @@ namespace TestTaskINT20H.Presentation.Controllers;
 [ApiController]
 [Route("jurisdictions")]
 [Produces("application/json")]
+[Authorize]
 public sealed class JurisdictionsController(ITaxCalculationService taxService) : ControllerBase
 {
     private readonly ITaxCalculationService _taxService = taxService ?? throw new ArgumentNullException(nameof(taxService));
