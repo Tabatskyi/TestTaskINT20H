@@ -14,32 +14,55 @@ public sealed class DatabaseInitializer(
     IConfiguration configuration,
     ILogger<DatabaseInitializer> logger) : IHostedService
 {
+    private const int MaxRetries = 30;
+    private static readonly TimeSpan InitialDelay = TimeSpan.FromSeconds(2);
+
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
 
-        await MigrateAsync<OrderDbContext>("Orders", scope, cancellationToken);
-        await MigrateAsync<AdminDbContext>("Admins", scope, cancellationToken);
+        await MigrateWithRetryAsync<OrderDbContext>("Orders", scope, cancellationToken);
+        await MigrateWithRetryAsync<AdminDbContext>("Admins", scope, cancellationToken);
         await SeedDefaultAdminAsync(scope, cancellationToken);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-    private async Task MigrateAsync<TContext>(string name, IServiceScope scope, CancellationToken ct)
+    private async Task MigrateWithRetryAsync<TContext>(string name, IServiceScope scope, CancellationToken ct)
         where TContext : DbContext
     {
         var db = scope.ServiceProvider.GetRequiredService<TContext>();
-        var pending = await db.Database.GetPendingMigrationsAsync(ct);
+        var delay = InitialDelay;
 
-        if (!pending.Any())
+        for (var attempt = 1; attempt <= MaxRetries; attempt++)
         {
-            logger.LogInformation("{Name} database is up to date.", name);
-            return;
+            try
+            {
+                var pending = await db.Database.GetPendingMigrationsAsync(ct);
+
+                if (!pending.Any())
+                {
+                    logger.LogInformation("{Name} database is up to date.", name);
+                    return;
+                }
+
+                logger.LogInformation("Applying {Count} pending migration(s) to {Name} database...", pending.Count(), name);
+                await db.Database.MigrateAsync(ct);
+                logger.LogInformation("{Name} database migrations applied.", name);
+                return;
+            }
+            catch (Exception ex) when (attempt < MaxRetries && !ct.IsCancellationRequested)
+            {
+                logger.LogWarning(
+                    "Failed to connect to {Name} database (attempt {Attempt}/{MaxRetries}). Retrying in {Delay}s... Error: {Error}",
+                    name, attempt, MaxRetries, delay.TotalSeconds, ex.Message);
+
+                await Task.Delay(delay, ct);
+                delay = TimeSpan.FromSeconds(Math.Min(delay.TotalSeconds * 1.5, 10)); // Cap at 10s
+            }
         }
 
-        logger.LogInformation("Applying {Count} pending migration(s) to {Name} database...", pending.Count(), name);
-        await db.Database.MigrateAsync(ct);
-        logger.LogInformation("{Name} database migrations applied.", name);
+        throw new InvalidOperationException($"Failed to connect to {name} database after {MaxRetries} attempts.");
     }
 
     private async Task SeedDefaultAdminAsync(IServiceScope scope, CancellationToken ct)
