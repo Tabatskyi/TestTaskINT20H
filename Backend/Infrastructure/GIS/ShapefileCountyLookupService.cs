@@ -11,6 +11,7 @@ namespace TestTaskINT20H.Infrastructure.GIS;
 /// </summary>
 public sealed class ShapefileCountyLookupService : IDisposable
 {
+    private const string NYStateFips = "36"; // New York State FIPS code
     private readonly List<CountyFeature> _nyCounties = [];
     private readonly STRtree<CountyFeature> _spatialIndex = new();
     private readonly GeometryFactory _geometryFactory = new(new PrecisionModel(), 4326); // WGS84
@@ -25,8 +26,14 @@ public sealed class ShapefileCountyLookupService : IDisposable
 
         foreach (var feature in features)
         {
+            var stateFips = feature.Attributes["STATEFP"]?.ToString();
+
+            // Only load NY State counties
+            if (stateFips != NYStateFips)
+                continue;
+
             var countyName = feature.Attributes["NAME"]?.ToString() ?? "Unknown";
-            var countyFips = feature.Attributes["FIPS_CODE"]?.ToString() ?? "";
+            var countyFips = feature.Attributes["COUNTYFP"]?.ToString() ?? "";
             var geometry = feature.Geometry;
 
             var countyFeature = new CountyFeature
@@ -84,6 +91,12 @@ public sealed class ShapefileCountyLookupService : IDisposable
     /// <returns>County information if found, null otherwise</returns>
     public CountyInfo? FindCounty(double latitude, double longitude)
         => FindCounty(_geometryFactory.CreatePoint(new Coordinate(longitude, latitude)));
+
+    /// <summary>
+    /// Checks if the given coordinates are within New York State.
+    /// </summary>
+    public bool IsInNewYorkState(double latitude, double longitude)
+        => FindCounty(latitude, longitude) is not null;
 
     public int LoadedCountyCount => _nyCounties.Count;
 

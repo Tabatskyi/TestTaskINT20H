@@ -14,7 +14,6 @@ public sealed class TaxCalculationService : ITaxCalculationService
     private const decimal DefaultCountyRate = 0.04m;
     private const string MCTDJurisdictionName = "MCTD";
 
-    private readonly ShapefileStateLookupService _stateLookup;
     private readonly ShapefileCountyLookupService _countyLookup;
     private readonly ShapefileCityLookupService _cityLookup;
 
@@ -77,32 +76,22 @@ public sealed class TaxCalculationService : ITaxCalculationService
         ["Saratoga Springs"] = new("Saratoga Springs", "Saratoga", 0.03m, 0.0m),
     };
 
-    public TaxCalculationService(ShapefileStateLookupService stateLookup, ShapefileCountyLookupService countyLookup, ShapefileCityLookupService cityLookup)
+    public TaxCalculationService(ShapefileCountyLookupService countyLookup, ShapefileCityLookupService cityLookup)
     {
-        _stateLookup = stateLookup ?? throw new ArgumentNullException(nameof(stateLookup));
         _countyLookup = countyLookup ?? throw new ArgumentNullException(nameof(countyLookup));
         _cityLookup = cityLookup ?? throw new ArgumentNullException(nameof(cityLookup));
     }
 
     public TaxCalculation CalculateTax(Location location, Money subtotal)
     {
-        // Use state shoreline boundary to determine if location is within New York State
-        if (!_stateLookup.IsInNewYorkState(location.Point))
+        var countyInfo = _countyLookup.FindCounty(location.Point);
+
+        // If location is outside NY State, return zero tax
+        if (countyInfo is null)
         {
             var noTaxBreakdown = new TaxBreakdown(0.0m, 0.0m, 0.0m, 0.0m);
             var noTax = new Money(0.0m, subtotal.Currency);
             return new TaxCalculation(noTaxBreakdown, noTax, new List<string> { "Out of State" }.AsReadOnly());
-        }
-
-        var countyInfo = _countyLookup.FindCounty(location.Point);
-
-        // Point is in NY State but county polygon not matched (e.g., shoreline edge)
-        // Apply state tax only with default county rate
-        if (countyInfo is null)
-        {
-            var stateOnlyBreakdown = new TaxBreakdown(NYStateRate, DefaultCountyRate, 0.0m, 0.0m);
-            var stateOnlyTax = new Money(subtotal.Amount * stateOnlyBreakdown.CompositeRate, subtotal.Currency);
-            return new TaxCalculation(stateOnlyBreakdown, stateOnlyTax, new List<string> { "New York State" }.AsReadOnly());
         }
 
         // Check for special city rates first
@@ -180,21 +169,18 @@ public sealed class TaxCalculationService : ITaxCalculationService
 
     public IReadOnlyList<JurisdictionInfo> GetJurisdictions(Location location)
     {
-        if (!_stateLookup.IsInNewYorkState(location.Point))
+        var countyInfo = _countyLookup.FindCounty(location.Point);
+
+        if (countyInfo is null)
             return [];
 
-        var countyInfo = _countyLookup.FindCounty(location.Point);
+        var specialCity = FindSpecialCity(location, countyInfo.Name);
+        var taxInfo = GetCountyTaxInfo(countyInfo.Name);
 
         var result = new List<JurisdictionInfo>
         {
             new("New York State", "state", NYStateRate)
         };
-
-        if (countyInfo is null)
-            return result.AsReadOnly();
-
-        var specialCity = FindSpecialCity(location, countyInfo.Name);
-        var taxInfo = GetCountyTaxInfo(countyInfo.Name);
 
         var specialRates = specialCity?.SpecialRates ?? taxInfo.SpecialRates;
 
