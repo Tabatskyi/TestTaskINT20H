@@ -18,7 +18,7 @@ services:
     networks:
       - wellness_kit_network
 
-  web:
+  backend:
     # Points to the folder containing your ASP.NET Dockerfile
     build:
       context: ./Backend
@@ -30,6 +30,19 @@ services:
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=orders_db;Username=postgres;Password=${DB_PASSWORD:-SuperSecretPassword123!}
     depends_on:
       - db
+    networks:
+      - wellness_kit_network
+
+  frontend:
+    build:
+      context: ./Frontend
+      args:
+        # Vite bakes VITE_* vars into the bundle at build time, so they must be build args
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:5000}
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
     networks:
       - wellness_kit_network
 
