@@ -53,7 +53,10 @@ builder.Services.AddAuthorization();
 
 // PostGIS — EF Core with Npgsql + NetTopologySuite
 // AddDbContextFactory registers IDbContextFactory<T> (singleton) and keeps OrderDbContext available as scoped
-var ordersConnection = GetConnectionString("ORDERS_DATABASE_URL", builder.Configuration.GetConnectionString("OrdersConnection"));
+// Heroku sets DATABASE_URL for the primary addon, and HEROKU_POSTGRESQL_<COLOR>_URL for additional ones
+var ordersConnection = GetConnectionString(
+    ["ORDERS_DATABASE_URL", "DATABASE_URL"], 
+    builder.Configuration.GetConnectionString("OrdersConnection"));
 builder.Services.AddDbContextFactory<OrderDbContext>(options =>
     options.UseNpgsql(
         ordersConnection,
@@ -61,7 +64,10 @@ builder.Services.AddDbContextFactory<OrderDbContext>(options =>
     ));
 
 // Separate database for admin accounts
-var adminsConnection = GetConnectionString("ADMINS_DATABASE_URL", builder.Configuration.GetConnectionString("AdminsConnection"));
+// Falls back to same DB if only one database addon is provisioned
+var adminsConnection = GetConnectionString(
+    ["ADMINS_DATABASE_URL", "HEROKU_POSTGRESQL_ADMINS_URL", "DATABASE_URL"], 
+    builder.Configuration.GetConnectionString("AdminsConnection"));
 builder.Services.AddDbContext<AdminDbContext>(options =>
     options.UseNpgsql(adminsConnection));
 builder.Services.AddSwaggerGen(options =>
@@ -143,14 +149,18 @@ app.MapControllers();
 app.Run();
 
 // Helper method to get connection string from Heroku URL or fallback to config
-static string? GetConnectionString(string herokuEnvVar, string? fallback)
+static string? GetConnectionString(string[] herokuEnvVars, string? fallback)
 {
-    var herokuUrl = Environment.GetEnvironmentVariable(herokuEnvVar);
-    if (string.IsNullOrEmpty(herokuUrl))
-        return fallback;
-
-    // Convert postgres:// URL to Npgsql connection string
-    var uri = new Uri(herokuUrl);
-    var userInfo = uri.UserInfo.Split(':');
-    return $"Host={uri.Host};Port={uri.Port};Database={uri.LocalPath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+    foreach (var envVar in herokuEnvVars)
+    {
+        var herokuUrl = Environment.GetEnvironmentVariable(envVar);
+        if (!string.IsNullOrEmpty(herokuUrl))
+        {
+            // Convert postgres:// URL to Npgsql connection string
+            var uri = new Uri(herokuUrl);
+            var userInfo = uri.UserInfo.Split(':');
+            return $"Host={uri.Host};Port={uri.Port};Database={uri.LocalPath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+        }
+    }
+    return fallback;
 }

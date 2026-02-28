@@ -18,5 +18,5 @@ WORKDIR /app
 COPY --from=build /app/publish .
 
 # Heroku assigns a dynamic PORT via environment variable
-# Use shell form CMD to allow $PORT substitution at runtime
-CMD dotnet TestTaskINT20H.dll --urls http://0.0.0.0:${PORT:-5000}
+# ASPNETCORE_URLS takes highest precedence for binding
+CMD ASPNETCORE_URLS=http://0.0.0.0:${PORT:-5000} dotnet TestTaskINT20H.dll
