@@ -39,4 +39,5 @@
 ### Запуск на Heroku
 
 Проєкт також розгорнуто на Heroku. Ви можете отримати до нього доступ за посиланням:
-[Вставити посилання на Heroku]
+https://wellness-kit-frontend-759045028065.herokuapp.com/ (frontend)
+https://wellness-kit-api-fd220228cda9.herokuapp.com/ (backend)
