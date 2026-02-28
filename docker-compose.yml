@@ -12,6 +12,12 @@ services:
       - pgdata:/var/lib/postgresql/data/pgdata
     networks:
       - wellness_kit_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ORDER_DB_USER} -d orders_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   db_admins:
     image: postgres:17-alpine
@@ -25,6 +31,12 @@ services:
       - pgdata_admins:/var/lib/postgresql/data
     networks:
       - wellness_kit_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ADMIN_DB_USER} -d admins_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   backend:
     build:
@@ -42,8 +54,10 @@ services:
       - ConnectionStrings__OrdersConnection=Host=db_orders;Port=5432;Database=orders_db;Username=${ORDER_DB_USER};Password=${ORDER_DB_PASSWORD}
       - ConnectionStrings__AdminsConnection=Host=db_admins;Port=5432;Database=admins_db;Username=${ADMIN_DB_USER};Password=${ADMIN_DB_PASSWORD}
     depends_on:
-      - db_orders
-      - db_admins
+      db_orders:
+        condition: service_healthy
+      db_admins:
+        condition: service_healthy
     networks:
       - wellness_kit_network
 

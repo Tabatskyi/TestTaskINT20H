@@ -1,16 +1,19 @@
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Geometries.Prepared;
+using NetTopologySuite.Index.Strtree;
 using NetTopologySuite.IO.Esri;
 
 namespace TestTaskINT20H.Infrastructure.GIS;
 
 /// <summary>
 /// Service for looking up incorporated city/place boundaries from a NY State places shapefile.
-/// Loads all place features at startup and provides point-in-polygon lookups.
+/// Uses STRtree spatial index and PreparedGeometry for fast point-in-polygon lookups.
 /// Compatible with Census Bureau TIGER/Line place files (e.g. tl_YYYY_36_place.shp).
 /// </summary>
 public sealed class ShapefileCityLookupService : IDisposable
 {
     private readonly List<CityFeature> _cities = [];
+    private readonly STRtree<CityFeature> _spatialIndex = new();
     private bool _isLoaded;
 
     public void LoadShapefile(string shapefilePath)
@@ -24,14 +27,25 @@ public sealed class ShapefileCityLookupService : IDisposable
             if (name is null)
                 continue;
 
-            _cities.Add(new CityFeature { Name = name, Geometry = feature.Geometry });
+            var geometry = feature.Geometry;
+            var cityFeature = new CityFeature
+            {
+                Name = name,
+                Geometry = geometry,
+                PreparedGeometry = PreparedGeometryFactory.Prepare(geometry)
+            };
+
+            _cities.Add(cityFeature);
+            _spatialIndex.Insert(geometry.EnvelopeInternal, cityFeature);
         }
 
+        _spatialIndex.Build();
         _isLoaded = true;
     }
 
     /// <summary>
     /// Finds the city/place containing the given WGS84 point.
+    /// Uses spatial index for O(log n) bounding box lookup, then precise containment test.
     /// </summary>
     /// <param name="point">WGS84 point (X = Longitude, Y = Latitude)</param>
     /// <returns>City information if found, null otherwise</returns>
@@ -40,9 +54,11 @@ public sealed class ShapefileCityLookupService : IDisposable
         if (!_isLoaded)
             throw new InvalidOperationException("Shapefile has not been loaded. Call LoadShapefile first.");
 
-        foreach (var city in _cities)
+        var candidates = _spatialIndex.Query(point.EnvelopeInternal);
+
+        foreach (var city in candidates)
         {
-            if (city.Geometry.Contains(point))
+            if (city.PreparedGeometry.Contains(point))
                 return new CityInfo { Name = city.Name };
         }
 
@@ -57,6 +73,7 @@ public sealed class ShapefileCityLookupService : IDisposable
     {
         public required string Name { get; init; }
         public required Geometry Geometry { get; init; }
+        public required IPreparedGeometry PreparedGeometry { get; init; }
     }
 }
 

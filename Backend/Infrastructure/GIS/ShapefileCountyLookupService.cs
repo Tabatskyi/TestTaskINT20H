@@ -16,7 +16,6 @@ public sealed class ShapefileCountyLookupService : IDisposable
     private readonly STRtree<CountyFeature> _spatialIndex = new();
     private readonly GeometryFactory _geometryFactory = new(new PrecisionModel(), 4326); // WGS84
     private bool _isLoaded;
-    private bool _isIndexBuilt;
 
     public void LoadShapefile(string shapefilePath)
     {
@@ -50,9 +49,7 @@ public sealed class ShapefileCountyLookupService : IDisposable
             _spatialIndex.Insert(geometry.EnvelopeInternal, countyFeature);
         }
 
-        // Build the spatial index for fast queries
         _spatialIndex.Build();
-        _isIndexBuilt = true;
         _isLoaded = true;
     }
 
