@@ -3,7 +3,7 @@ FROM node:lts-alpine AS build
 
 WORKDIR /app
 
-COPY package*.json .
+COPY package*.json ./
 RUN npm ci
 
 # Declare build arg and expose it as an env var so Vite picks it up
