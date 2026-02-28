@@ -31,7 +31,7 @@ public sealed class OrderApplicationService(
 
         var taxCalculation = _taxCalculationService.CalculateTax(order.Location, order.Subtotal);
 
-        if (taxCalculation.Jurisdictions.Contains("Out of State"))
+        if (taxCalculation.IsOutOfState)
             throw new InvalidOperationException("Orders can only be created for locations within New York State.");
 
         order.ApplyTaxCalculation(taxCalculation);
@@ -59,7 +59,7 @@ public sealed class OrderApplicationService(
 
             var taxCalculation = _taxCalculationService.CalculateTax(order.Location, order.Subtotal);
 
-            if (taxCalculation.Jurisdictions.Contains("Out of State"))
+            if (taxCalculation.IsOutOfState)
             {
                 results[i] = (null, true);
                 return;

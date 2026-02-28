@@ -53,15 +53,23 @@ builder.Services.AddAuthorization();
 
 // PostGIS — EF Core with Npgsql + NetTopologySuite
 // AddDbContextFactory registers IDbContextFactory<T> (singleton) and keeps OrderDbContext available as scoped
+// Heroku sets DATABASE_URL for the primary addon, and HEROKU_POSTGRESQL_<COLOR>_URL for additional ones
+var ordersConnection = GetConnectionString(
+    ["ORDERS_DATABASE_URL", "DATABASE_URL"], 
+    builder.Configuration.GetConnectionString("OrdersConnection"));
 builder.Services.AddDbContextFactory<OrderDbContext>(options =>
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("OrdersConnection"),
+        ordersConnection,
         npgsql => npgsql.UseNetTopologySuite()
     ));
 
 // Separate database for admin accounts
+// Falls back to same DB if only one database addon is provisioned
+var adminsConnection = GetConnectionString(
+    ["ADMINS_DATABASE_URL", "HEROKU_POSTGRESQL_ADMINS_URL", "DATABASE_URL"], 
+    builder.Configuration.GetConnectionString("AdminsConnection"));
 builder.Services.AddDbContext<AdminDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("AdminsConnection")));
+    options.UseNpgsql(adminsConnection));
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -91,7 +99,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // GIS Services - load shapefiles at startup
-builder.Services.AddSingleton(provider =>
+builder.Services.AddSingleton<ICountyLookupService>(provider =>
 {
     var countyLookup = new ShapefileCountyLookupService();
     var shapefilePath = Path.Combine(AppContext.BaseDirectory, "Data", "ny_counties.shp");
@@ -99,7 +107,7 @@ builder.Services.AddSingleton(provider =>
     return countyLookup;
 });
 
-builder.Services.AddSingleton(provider =>
+builder.Services.AddSingleton<ICityLookupService>(provider =>
 {
     var cityLookup = new ShapefileCityLookupService();
     var shapefilePath = Path.Combine(AppContext.BaseDirectory, "Data", "ny_places.shp");
@@ -139,3 +147,20 @@ app.MapGet("/", () => Results.Redirect("/swagger"));
 app.MapControllers();
 
 app.Run();
+
+// Helper method to get connection string from Heroku URL or fallback to config
+static string? GetConnectionString(string[] herokuEnvVars, string? fallback)
+{
+    foreach (var envVar in herokuEnvVars)
+    {
+        var herokuUrl = Environment.GetEnvironmentVariable(envVar);
+        if (!string.IsNullOrEmpty(herokuUrl))
+        {
+            // Convert postgres:// URL to Npgsql connection string
+            var uri = new Uri(herokuUrl);
+            var userInfo = uri.UserInfo.Split(':');
+            return $"Host={uri.Host};Port={uri.Port};Database={uri.LocalPath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+        }
+    }
+    return fallback;
+}

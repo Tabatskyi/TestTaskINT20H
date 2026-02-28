@@ -44,6 +44,7 @@ services:
     ports:
       - "5000:5000"
     environment:
+      - PORT=5000
       - ASPNETCORE_ENVIRONMENT=Production
       - AllowedHosts=${ALLOWED_HOSTS}
       - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS_0}
@@ -64,6 +65,8 @@ services:
   frontend:
     build:
       context: ./Frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
     ports:
       - "3000:80"
     depends_on:

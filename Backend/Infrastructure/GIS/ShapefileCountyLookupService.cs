@@ -2,6 +2,7 @@ using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using NetTopologySuite.Index.Strtree;
 using NetTopologySuite.IO.Esri;
+using TestTaskINT20H.Domain.Orders.Services;
 
 namespace TestTaskINT20H.Infrastructure.GIS;
 
@@ -9,7 +10,7 @@ namespace TestTaskINT20H.Infrastructure.GIS;
 /// Service for looking up county information from shapefiles using NetTopologySuite.
 /// Uses STRtree spatial index and PreparedGeometry for fast point-in-polygon lookups.
 /// </summary>
-public sealed class ShapefileCountyLookupService : IDisposable
+public sealed class ShapefileCountyLookupService : ICountyLookupService, IDisposable
 {
     private const string NYStateFips = "36"; // New York State FIPS code
     private readonly List<CountyFeature> _nyCounties = [];
@@ -59,7 +60,7 @@ public sealed class ShapefileCountyLookupService : IDisposable
     /// </summary>
     /// <param name="point">WGS84 point (X = Longitude, Y = Latitude)</param>
     /// <returns>County information if found, null otherwise</returns>
-    public CountyInfo? FindCounty(Point point)
+    public CountyResult? FindCounty(Point point)
     {
         if (!_isLoaded)
             throw new InvalidOperationException("Shapefile has not been loaded. Call LoadShapefile first.");
@@ -70,14 +71,7 @@ public sealed class ShapefileCountyLookupService : IDisposable
         foreach (var county in candidates)
         {
             if (county.PreparedGeometry.Contains(point))
-            {
-                return new CountyInfo
-                {
-                    Name = county.Name,
-                    FullName = county.FullName,
-                    CountyFips = county.CountyFips
-                };
-            }
+                return new CountyResult(county.Name, county.FullName, county.CountyFips);
         }
 
         return null;
@@ -86,17 +80,8 @@ public sealed class ShapefileCountyLookupService : IDisposable
     /// <summary>
     /// Finds the county containing the given coordinates.
     /// </summary>
-    /// <param name="latitude">Latitude in WGS84</param>
-    /// <param name="longitude">Longitude in WGS84</param>
-    /// <returns>County information if found, null otherwise</returns>
-    public CountyInfo? FindCounty(double latitude, double longitude)
+    public CountyResult? FindCounty(double latitude, double longitude)
         => FindCounty(_geometryFactory.CreatePoint(new Coordinate(longitude, latitude)));
-
-    /// <summary>
-    /// Checks if the given coordinates are within New York State.
-    /// </summary>
-    public bool IsInNewYorkState(double latitude, double longitude)
-        => FindCounty(latitude, longitude) is not null;
 
     public int LoadedCountyCount => _nyCounties.Count;
 
@@ -116,14 +101,4 @@ public sealed class ShapefileCountyLookupService : IDisposable
         public required Geometry Geometry { get; init; }
         public required IPreparedGeometry PreparedGeometry { get; init; }
     }
-}
-
-/// <summary>
-/// County information returned from shapefile lookup.
-/// </summary>
-public sealed class CountyInfo
-{
-    public required string Name { get; init; }
-    public required string FullName { get; init; }
-    public required string CountyFips { get; init; }
 }

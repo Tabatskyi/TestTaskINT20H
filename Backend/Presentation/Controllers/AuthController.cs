@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using TestTaskINT20H.Application.Auth.DTOs;
 using TestTaskINT20H.Application.Auth.Services;
-using TestTaskINT20H.Application.Orders.DTOs;
+using TestTaskINT20H.Application.Shared;
 
 namespace TestTaskINT20H.Presentation.Controllers;
 

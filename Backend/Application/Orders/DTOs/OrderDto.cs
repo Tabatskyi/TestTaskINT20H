@@ -62,11 +62,3 @@ public sealed record ImportOrdersResponse
     [JsonPropertyName("processing_time_ms")]
     public long ProcessingTimeMs { get; init; }
 }
-
-public sealed record ErrorResponse
-{
-    public string Error { get; init; } = string.Empty;
-
-    [JsonPropertyName("skipped_rows")]
-    public List<int>? SkippedRows { get; init; }
-}

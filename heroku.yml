@@ -1,0 +1,9 @@
+setup:
+  addons:
+    - plan: heroku-postgresql:essential-0
+  config:
+    ASPNETCORE_ENVIRONMENT: Production
+
+build:
+  docker:
+    web: Backend/Dockerfile

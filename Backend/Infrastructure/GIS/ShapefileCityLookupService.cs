@@ -2,6 +2,7 @@ using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using NetTopologySuite.Index.Strtree;
 using NetTopologySuite.IO.Esri;
+using TestTaskINT20H.Domain.Orders.Services;
 
 namespace TestTaskINT20H.Infrastructure.GIS;
 
@@ -10,7 +11,7 @@ namespace TestTaskINT20H.Infrastructure.GIS;
 /// Uses STRtree spatial index and PreparedGeometry for fast point-in-polygon lookups.
 /// Compatible with Census Bureau TIGER/Line place files (e.g. tl_YYYY_36_place.shp).
 /// </summary>
-public sealed class ShapefileCityLookupService : IDisposable
+public sealed class ShapefileCityLookupService : ICityLookupService, IDisposable
 {
     private readonly List<CityFeature> _cities = [];
     private readonly STRtree<CityFeature> _spatialIndex = new();
@@ -49,7 +50,7 @@ public sealed class ShapefileCityLookupService : IDisposable
     /// </summary>
     /// <param name="point">WGS84 point (X = Longitude, Y = Latitude)</param>
     /// <returns>City information if found, null otherwise</returns>
-    public CityInfo? FindCity(Point point)
+    public CityResult? FindCity(Point point)
     {
         if (!_isLoaded)
             throw new InvalidOperationException("Shapefile has not been loaded. Call LoadShapefile first.");
@@ -59,7 +60,7 @@ public sealed class ShapefileCityLookupService : IDisposable
         foreach (var city in candidates)
         {
             if (city.PreparedGeometry.Contains(point))
-                return new CityInfo { Name = city.Name };
+                return new CityResult(city.Name);
         }
 
         return null;
@@ -75,12 +76,4 @@ public sealed class ShapefileCityLookupService : IDisposable
         public required Geometry Geometry { get; init; }
         public required IPreparedGeometry PreparedGeometry { get; init; }
     }
-}
-
-/// <summary>
-/// City information returned from shapefile lookup.
-/// </summary>
-public sealed class CityInfo
-{
-    public required string Name { get; init; }
 }
