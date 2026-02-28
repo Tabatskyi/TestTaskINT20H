@@ -42,3 +42,5 @@
 
 - https://wellness-kit-frontend-759045028065.herokuapp.com/ (frontend) 
 - https://wellness-kit-api-fd220228cda9.herokuapp.com/ (backend)
+  логін: kse-admin
+  пароль: kse-secure-password
