@@ -163,6 +163,12 @@ public sealed class CsvImportService
 
     private static string[] ParseCsvLine(string line)
     {
+        // Fast path: no quoted fields (the common case) — String.Split is significantly
+        // cheaper than the char-by-char StringBuilder loop.
+        if (line.IndexOf('"') < 0)
+            return line.Split(',', StringSplitOptions.TrimEntries);
+
+        // Slow path: quoted fields that may contain commas or whitespace.
         var values = new List<string>();
         var inQuotes = false;
         var valueBuilder = new StringBuilder();

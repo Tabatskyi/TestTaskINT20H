@@ -15,7 +15,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 // PostGIS — EF Core with Npgsql + NetTopologySuite
-builder.Services.AddDbContext<OrderDbContext>(options =>
+// AddDbContextFactory registers IDbContextFactory<T> (singleton) and keeps OrderDbContext available as scoped
+builder.Services.AddDbContextFactory<OrderDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         npgsql => npgsql.UseNetTopologySuite()

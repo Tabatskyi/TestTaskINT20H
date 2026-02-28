@@ -11,8 +11,10 @@ namespace TestTaskINT20H.Infrastructure.Persistence;
 /// Scalar filters (date, total) are evaluated server-side.
 /// The PostGIS <c>point</c> generated column is used for spatial proximity queries.
 /// </summary>
-public sealed class PostgresOrderRepository(OrderDbContext dbContext) : IOrderRepository
+public sealed class PostgresOrderRepository(OrderDbContext dbContext, IDbContextFactory<OrderDbContext> dbContextFactory) : IOrderRepository
 {
+    private const int InsertBatchSize = 1000;
+
     public void Add(Order order)
     {
         ArgumentNullException.ThrowIfNull(order);
@@ -23,8 +25,27 @@ public sealed class PostgresOrderRepository(OrderDbContext dbContext) : IOrderRe
     public void AddRange(IEnumerable<Order> orders)
     {
         ArgumentNullException.ThrowIfNull(orders);
-        dbContext.Orders.AddRange(orders);
-        dbContext.SaveChanges();
+
+        var batches = orders.Chunk(InsertBatchSize).ToArray();
+
+        if (batches.Length == 0)
+            return;
+
+        // Single batch reuses the scoped context; multiple batches run in parallel,
+        // each with its own context instance to avoid DbContext thread-safety issues.
+        if (batches.Length == 1)
+        {
+            dbContext.Orders.AddRange(batches[0]);
+            dbContext.SaveChanges();
+            return;
+        }
+
+        Parallel.ForEach(batches, batch =>
+        {
+            using var context = dbContextFactory.CreateDbContext();
+            context.Orders.AddRange(batch);
+            context.SaveChanges();
+        });
     }
 
     public Order? GetById(Guid id)

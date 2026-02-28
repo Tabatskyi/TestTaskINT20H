@@ -46,10 +46,11 @@ public sealed class OrderApplicationService(
         if (requests.Count == 0)
             return new ImportOrdersResult();
 
-        var orders = new List<Order>(requests.Count);
-        var skippedIndices = new List<int>();
+        // Pre-allocated array — each slot is written by exactly one thread (index-safe).
+        // Tax calculation reads only from immutable/read-only service state, so it is safe to parallelise.
+        var results = new (Order? Order, bool Skipped)[requests.Count];
 
-        for (var i = 0; i < requests.Count; i++)
+        Parallel.For(0, requests.Count, i =>
         {
             var request = requests[i];
             var location = new Location(request.Latitude, request.Longitude);
@@ -60,12 +61,23 @@ public sealed class OrderApplicationService(
 
             if (taxCalculation.Jurisdictions.Contains("Out of State"))
             {
-                skippedIndices.Add(i);
-                continue;
+                results[i] = (null, true);
+                return;
             }
 
             order.ApplyTaxCalculation(taxCalculation);
-            orders.Add(order);
+            results[i] = (order, false);
+        });
+
+        var orders = new List<Order>(requests.Count);
+        var skippedIndices = new List<int>();
+
+        for (var i = 0; i < results.Length; i++)
+        {
+            if (results[i].Order is { } order)
+                orders.Add(order);
+            else
+                skippedIndices.Add(i);
         }
 
         _orderRepository.AddRange(orders);
